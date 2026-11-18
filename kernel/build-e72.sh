@@ -49,9 +49,12 @@ config() {
 		S --set-str EXTRA_FIRMWARE_DIR "$E72_WLAN_FW"
 	fi
 	S -e RAPUYAMA_GDMA
+	# E72 loader limit: Image <= 16 MB. xz initramfs, no btrfs, no full kallsyms
+	S -e RD_XZ; S -d INITRAMFS_COMPRESSION_GZIP; S -e INITRAMFS_COMPRESSION_XZ
+	S -d BTRFS_FS; S -d KALLSYMS_ALL
 	# E72: tun + wireguard for a tailnet, 100 Hz tick (fewer wakeups than 1000)
 	S -e TUN; S -e WIREGUARD; S -d HZ_1000; S -e HZ_100
-	S -e KEXEC; S -d STRICT_DEVMEM; S -e KALLSYMS_ALL; S -e IKCONFIG; S -e IKCONFIG_PROC
+	S -e KEXEC; S -d STRICT_DEVMEM; S -e IKCONFIG; S -e IKCONFIG_PROC
 	# E72: 128 MB, top of ram at 0x18000000
 	S --set-val RAPUYAMA_RAM_TOP 0x18000000
 	I="$(cd "$HERE/../initramfs" && pwd)"; BB="$(realpath "$HERE/../../work/dl/busybox-armv5l")"

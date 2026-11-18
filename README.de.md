@@ -22,11 +22,11 @@ Langfristiges Ziel: ein energiesparendes Taschenterminal (Tastatur + Bildschirm 
 | Secure-Watchdog-Brücke (PA_SWD) | auf dem Gerät bestätigt | nur Firmware 091.004; Linux lief > 15 min (ohne Brücke: Neustart nach 3-4 min) |
 | Tastaturmatrix (8 Zeilen x 7 Spalten) | teilweise bestätigt | 8 Tasten mit dem Testmodul geprüft; die übrigen 47 folgen Symbians Abfragetabelle und wurden nicht einzeln gedrückt |
 | Tastaturtreiber im Kernel, Pins aus dem Device Tree (Patch 0003) | gebaut, ungetestet | im aktuellen `e72.dts`, noch nicht gebootet |
-| WLAN (TI WL1251 an SPI 2, Power GPIO 100, IRQ GPIO 73) | gebaut, ungetestet | braucht Firmware + NVS vom eigenen Telefon, siehe [docs/wlan.md](docs/wlan.md) |
-| microSD-Slot, GDMA | gebaut, ungetestet | Knoten aus `e5.dts`, Registerwerte mit dem Symbian des E72 abgeglichen |
-| WFI-Leerlauf, zur Laufzeit schaltbar (Patch 0004) | gebaut, ungetestet | Start mit `nohlt`; `echo 1 > /sys/module/idle/parameters/wfi` |
+| WLAN (TI WL1251 an SPI 2, Power GPIO 100, IRQ GPIO 73) | auf dem Gerät bestätigt | braucht Firmware + NVS vom eigenen Telefon, siehe [docs/wlan.md](docs/wlan.md); WPA2, DHCP und Ping ins Internet geprüft am 2026-11-18 |
+| microSD-Slot, GDMA | auf dem Gerät bestätigt | Knoten aus `e5.dts`, Registerwerte mit dem Symbian des E72 abgeglichen |
+| WFI-Leerlauf, zur Laufzeit schaltbar (Patch 0004) | auf dem Gerät bestätigt | Start mit `nohlt`; `echo 1 > /sys/module/idle/parameters/wfi`; rund 97 % der Leerlaufzeit im WFI |
 | kexec (neuer Kernel ohne Umweg über Symbian) | gebaut, ungetestet | `CONFIG_KEXEC=y`, `kexec` im Initramfs |
-| Alpine-Userland im Initramfs (wpa_supplicant, iw, dbclient/ssh, scp, kexec, apk) | gebaut, ungetestet | `initramfs/e72-rootfs.sh` |
+| Alpine-Userland im Initramfs (wpa_supplicant, iw, dbclient/ssh, scp, kexec, apk) | teilweise bestätigt | `initramfs/e72-rootfs.sh` |
 | TUN / WireGuard, 100-Hz-Takt | gebaut, ungetestet | |
 | USB-Ethernet (CDC ECM, `usb0`) | funktioniert nicht | sendet, empfängt aber nur das erste Paket |
 | Akkustand, Laden | nicht umgesetzt | Linux nicht mit fast leerem Akku laufen lassen |
