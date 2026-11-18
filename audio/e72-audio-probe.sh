@@ -18,8 +18,8 @@ for d in /sys/bus/i2c/devices/i2c-*; do
 done
 [ -n "$BUS" ] || { echo "no i2c bus for 20032500"; exit 1; }
 C=0x18
-w() { i2cset -y $BUS $C $1 $2; }               # codec write (current page)
-r() { i2cget -y $BUS $C $1; }
+w() { i2cset -y $BUS $C $(printf 0x%02x $1) $2; }               # codec write (current page)
+r() { i2cget -y $BUS $C $(printf 0x%02x $1); }
 pg() { w 0x00 $1; }
 
 probe() {
@@ -77,5 +77,11 @@ loop)  [ "$2" = "--audible" ] || { echo "add --audible"; exit 1; }
        w 18 0x00; w 19 0x92; w 20 0x40; w 61 0x01; w 83 0x00; w 84 0x00
        w 52 0x28; w 82 0x08; w 81 0xde; w 29 0x10                    # left ADC -> DAC, right muted
        hp_on; sleep 3; flags; off;;
+tone)  [ "$2" = "--audible" ] || { echo "add --audible"; exit 1; }
+       # 3 s, DAC 0 dB, beep volume ${3:-0x14} (-20 dB default); polls the beep flag
+       codec_on; dac_on; pg 0; w 65 0x00; hp_on; sleep 1
+       pg 0; w 76 0x10; w 77 0xb5; w 78 0x7e; w 79 0xe7; w 73 0x02; w 74 0x32; w 75 0x80
+       w 72 0x80; w 71 $(printf 0x%02x $(( 0x80 | ${3:-0x14} )))
+       for i in 1 2 3 4 5; do flags; sleep 1; done; off;;
 off)   off;;
 esac

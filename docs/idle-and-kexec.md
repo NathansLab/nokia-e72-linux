@@ -36,3 +36,7 @@ Status 2026-11-18. Findings from static analysis of Symbian's `power.dll`, GPIO 
 `0013-keypad-row-interrupts-gpio-enable-reg.patch`: with `rapuyama_e5_keypad.irq=1` and `e72-level.dtb` the driver waits for a level interrupt on the eight row pins while no key is down and scans every 20 ms only while a key is held. Without the parameter it polls as before. Not yet run.
 
 The GPIO interrupt block counts in "logical" pin numbers: 0-87 unchanged, 106-137 as pin - 18 (pin 119 -> line 303, bank 3 bit 5). An interrupt on pin 119 is therefore `<&gpio 101 ...>` in the device tree.
+
+## On-device test (2026-11-18)
+
+With the token written back, kexec worked right after boot, after 274 s and after 228 s of uptime. WLAN runs with the level interrupt; with `e6.oneshot=1` and WFI it responds normally once connected (ping 8/8, 20–80 timer interrupts per second), only the first association took about 200 s. The keypad row interrupts are registered, a key press has not been checked yet.

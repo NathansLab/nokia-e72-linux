@@ -30,3 +30,11 @@ Status 2026-11-18. Everything here comes from static analysis of a RAM image of 
 - The sensor at 0x29 is a TSL2563 ambient light sensor. Driver and node are in the kernel; `e72-lights` sets display brightness and keyboard light from it. Not yet run.
 - The FM radio is the BCM2048 inside the Bluetooth chip; kernel 6.12 has no driver for it.
 - Vibra re-checked: 0x23 in mask 0x37 is the complete "on"; both bridge halves can never be on together.
+
+## On-device test (2026-11-18)
+
+- The codec answers at 0x18. The 38.4 MHz master clock (MCLK) is off under Linux; bits 6 and 7 of cgc+0x180 switch it on: `devmem 0x20033084 32 0xc0`, off with `devmem 0x20033088 32 0xc0`. Never write 0x20033080 itself.
+- Even with the clock on, the beep bit (P0 R71 bit 7) does not clear; whether a tone is audible is open.
+- Headphone amplifier 0x60 and FM chip 0x22 do not answer when idle.
+- Vibra: the driver loads, the register switches to 0x23 and back to 0.
+- busybox `i2cset` on the phone rejects some decimal numbers; the script converts register numbers to hex. New mode `tone` (3 s, louder).
