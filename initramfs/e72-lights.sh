@@ -6,6 +6,7 @@
 P=/sys/class/backlight/panel/brightness
 K=/sys/class/backlight/gazoo-pwm0/brightness
 ON=${3:-120}
+F=/sys/class/graphics/fb0/blank
 EV=
 for n in /sys/class/input/event*/device/name; do
 	case "$(cat $n 2>/dev/null)" in *keyboard*) EV=/dev/input/$(basename ${n%/device/name}) ;; esac
@@ -20,6 +21,7 @@ lit() {
 		elif [ "$l" -lt 400 ]; then p=150; k=0
 		else p=255; k=0; fi
 	fi
+	[ -w $F ] && echo 0 > $F
 	echo $p > $P; echo $k > $K
 }
 st=on; lit
@@ -35,6 +37,8 @@ while :; do
 	elif [ $st = on ]; then
 		st=dim; echo 30 > $P; echo 0 > $K
 	else
-		st=off; echo 0 > $P; echo 0 > $K
+		# off: also put the panel itself to sleep (display off + sleep in),
+		# at brightness 0 it would stay awake
+		st=off; echo 0 > $P; echo 0 > $K; [ -w $F ] && echo 1 > $F
 	fi
 done

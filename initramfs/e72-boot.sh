@@ -35,6 +35,8 @@ BB=/bin/busybox
 	# energy: wlan power save (about 60 mA less); the lights follow the keys
 	command -v iw >/dev/null && iw dev wlan0 set power_save on 2>/dev/null
 	[ -r /etc/e72.kmap ] && $BB loadkmap < /etc/e72.kmap && k "keymap /etc/e72.kmap loaded"
+	# a blinking cursor redraws (and wakes the cpu) twice a second
+	[ -w /sys/class/graphics/fbcon/cursor_blink ] && echo 0 > /sys/class/graphics/fbcon/cursor_blink
 	[ -e /dev/input/event0 ] && /bin/e72-lights </dev/null >/dev/null 2>&1 &
 	# the bq24151 only charges from an enumerated usb host. on a wall charger
 	# (usb power present, no charging) go back to symbian below 3500 mV, it
