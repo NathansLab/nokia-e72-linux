@@ -6,7 +6,7 @@ German version: [README.de.md](README.de.md)
 
 ![Linux console on the E72 display](images/e72-first-linux-image.jpg)
 
-**Status: early bring-up.** Linux boots, shows a console on the phone's display, gives a root shell over USB and keeps the phone alive past Symbian's secure watchdog. It is not a usable phone OS yet: no battery monitoring, no charging, no modem, no audio.
+**Status: early bring-up.** Linux boots, shows a console on the phone's display, gives a root shell over USB and keeps the phone alive past Symbian's secure watchdog. It is not a usable phone OS yet: WLAN, SSH, battery gauge and USB charging work; modem and audio do not yet.
 
 Long-term goal: an energy-efficient pocket terminal (keyboard + screen + WLAN) used to SSH into a machine that runs Claude Code.
 
