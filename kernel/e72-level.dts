@@ -1,4 +1,4 @@
-/* E72 test variant: wl1251 interrupt (gpio 73) as a level interrupt, the way
+/* E72 test variant (level interrupts): wl1251 interrupt (gpio 73) as a level interrupt, the way
  * Symbian's WLAN driver runs the pin (mode 0 + polarity high, masked in the
  * isr, unmasked after the deferred work). An edge on this pin seems to get
  * lost during longer WFI periods (one-shot tick); a level cannot.
@@ -7,4 +7,12 @@
 
 &{/soc/spi@20020600/wifi@0} {
 	interrupts-extended = <&gpio 73 4>;
+};
+
+&{/soc/keypad@20031900} {
+	/* one level-low interrupt per row for rapuyama_e5_keypad.irq=1 (off by
+	 * default). numbers are the logical irq pins: 119/120/121 -> 101/102/103.
+	 * 8 = IRQ_TYPE_LEVEL_LOW. not yet run on the device */
+	interrupts-extended = <&gpio 26 8>, <&gpio 101 8>, <&gpio 35 8>, <&gpio 24 8>,
+			      <&gpio 102 8>, <&gpio 103 8>, <&gpio 38 8>, <&gpio 36 8>;
 };

@@ -1,0 +1,186 @@
+From: Nathan Scheufele
+Subject: [PATCH] keypad: optional row interrupts instead of polling (irq=1); gpio: enable state is at 0x0c, logical pin numbers documented; untested
+
+---
+--- a/drivers/input/keyboard/rapuyama-e5-keypad.c
++++ b/drivers/input/keyboard/rapuyama-e5-keypad.c
+@@ -21,6 +21,7 @@
+ #include <linux/bitops.h>
+ #include <linux/delay.h>
+ #include <linux/input.h>
++#include <linux/interrupt.h>
+ #include <linux/input/matrix_keypad.h>
+ #include <linux/io.h>
+ #include <linux/module.h>
+@@ -69,6 +70,18 @@
+ module_param(col_delay_us, uint, 0644);
+ MODULE_PARM_DESC(col_delay_us, "settle time after driving a column, us (default 5)");
+ 
++/*
++ * irq=1: no polling while no key is down. Symbian's ekeyb does the same: the
++ * columns rest low, every row pin is a level-low interrupt, the isr masks
++ * the rows and the matrix is scanned until all keys are up again. Needs one
++ * interrupt per row in the device tree, else the driver keeps polling.
++ */
++static bool use_irq;
++module_param_named(irq, use_irq, bool, 0444);
++MODULE_PARM_DESC(irq, "wait for a row interrupt instead of polling while no key is down (default off)");
++
++#define E5KP_IDLE_SCANS	5	/* empty scans before going back to the interrupts */
++
+ struct e5kp {
+ 	struct device *dev;
+ 	struct input_dev *input;
+@@ -86,8 +99,44 @@
+ 
+ 	u8 state[E5KP_COLS];		/* reported: bit r of state[c] = pressed */
+ 	u8 last[E5KP_COLS];		/* previous raw scan, for debouncing */
++
++	int row_irq[E5KP_ROWS];
++	bool irq_mode;
++	spinlock_t irq_lock;
++	bool armed;			/* row interrupts enabled, not scanning */
++	unsigned int idle_scans;
++	unsigned long wakeups;
+ };
+ 
++static void e5kp_arm(struct e5kp *kp, bool on)
++{
++	unsigned long flags;
++	int r;
++
++	spin_lock_irqsave(&kp->irq_lock, flags);
++	if (kp->armed != on) {
++		kp->armed = on;
++		for (r = 0; r < kp->nrows; r++) {
++			if (on)
++				enable_irq(kp->row_irq[r]);
++			else
++				disable_irq_nosync(kp->row_irq[r]);
++		}
++	}
++	spin_unlock_irqrestore(&kp->irq_lock, flags);
++}
++
++static irqreturn_t e5kp_irq(int irq, void *data)
++{
++	struct e5kp *kp = data;
++
++	/* level irq: all rows stay masked until the scan saw every key up */
++	e5kp_arm(kp, false);
++	kp->wakeups++;
++	mod_delayed_work(system_wq, &kp->work, 0);
++	return IRQ_HANDLED;
++}
++
+ static void e5kp_cols_dir(struct e5kp *kp, bool out)
+ {
+ 	int k;
+@@ -162,7 +211,7 @@
+ 	struct e5kp *kp = container_of(to_delayed_work(work), struct e5kp, work);
+ 	const unsigned short *keycode = kp->input->keycode;
+ 	u8 cols[E5KP_COLS];
+-	bool sync = false;
++	bool sync = false, busy = false;
+ 	int c, r;
+ 
+ 	e5kp_scan(kp, cols);
+@@ -172,6 +221,7 @@
+ 		u8 stable = ~(cols[c] ^ kp->last[c]);
+ 		u8 changed = (cols[c] ^ kp->state[c]) & stable;
+ 
++		busy |= cols[c] || kp->last[c] || kp->state[c];
+ 		kp->last[c] = cols[c];
+ 		for (r = 0; r < E5KP_ROWS; r++) {
+ 			unsigned int code = MATRIX_SCAN_CODE(r, c, E5KP_ROW_SHIFT);
+@@ -191,6 +241,15 @@
+ 	if (sync)
+ 		input_sync(kp->input);
+ 
++	if (kp->irq_mode) {
++		kp->idle_scans = busy ? 0 : kp->idle_scans + 1;
++		if (kp->idle_scans >= E5KP_IDLE_SCANS) {
++			/* a key going down right now fires the level irq at once */
++			kp->idle_scans = 0;
++			e5kp_arm(kp, true);
++			return;
++		}
++	}
+ 	schedule_delayed_work(&kp->work, msecs_to_jiffies(poll_ms));
+ }
+ 
+@@ -198,7 +257,11 @@
+ {
+ 	struct e5kp *kp = data;
+ 
++	if (kp->irq_mode)
++		e5kp_arm(kp, false);
+ 	cancel_delayed_work_sync(&kp->work);
++	if (kp->irq_mode)
++		e5kp_arm(kp, false);	/* the last scan may have armed again */
+ 	e5kp_cols_level(kp, false);
+ }
+ 
+@@ -284,13 +347,31 @@
+ 
+ 	/* scan always runs (learn mode needs it without any input reader) */
+ 	INIT_DELAYED_WORK(&kp->work, e5kp_work);
++	spin_lock_init(&kp->irq_lock);
++	kp->irq_mode = use_irq;
++	for (i = 0; i < kp->nrows && kp->irq_mode; i++) {
++		kp->row_irq[i] = platform_get_irq_optional(pdev, i);
++		if (kp->row_irq[i] <= 0) {
++			dev_info(dev, "row %d has no interrupt, polling\n", i);
++			kp->irq_mode = false;
++		}
++	}
++	for (i = 0; i < kp->nrows && kp->irq_mode; i++) {
++		/* stays disabled: the first scans arm the rows */
++		ret = devm_request_irq(dev, kp->row_irq[i], e5kp_irq,
++				       IRQF_TRIGGER_LOW | IRQF_NO_AUTOEN,
++				       "e5-keypad", kp);
++		if (ret)
++			return dev_err_probe(dev, ret, "row %d irq\n", i);
++	}
+ 	ret = devm_add_action_or_reset(dev, e5kp_stop, kp);
+ 	if (ret)
+ 		return ret;
+ 	schedule_delayed_work(&kp->work, 0);
+ 
+-	dev_info(dev, "%ux%u matrix, polled %u ms, %s keymap, learn %d\n",
+-		 kp->nrows, kp->ncols, poll_ms,
++	dev_info(dev, "%ux%u matrix, %s %u ms, %s keymap, learn %d\n",
++		 kp->nrows, kp->ncols,
++		 kp->irq_mode ? "row interrupts, scan" : "polled", poll_ms,
+ 		 device_property_present(dev, "linux,keymap") ? "dt" : "no", learn);
+ 	return 0;
+ }
+--- a/drivers/gpio/gpio-rapuyama.c
++++ b/drivers/gpio/gpio-rapuyama.c
+@@ -28,9 +28,14 @@
+  *
+  *   0x04 bank enable (1 while any pin is enabled)   0x08 raw state
+  *   0x10 write bits -> enable                       0x14 write bits -> disable
+- *   0x18 enabled mask                               0x20 write bits -> ack
++ *   0x0c enabled mask                               0x20 write bits -> ack
+  *   0x28 / 0x2c write bits -> edge / level          0x34 / 0x38 polarity
+  *
++ * The second block is indexed by the egpio "logical" pin number: pins 0..87
++ * as they are, pins 106..137 as pin - 18 (E72 egpio table 0x800a7830: pin 119
++ * -> line 303, bank 3 bit 5). ry_irq_ranges and the irq registers below use
++ * that logical number, so an interrupt on pin 119 is <&gpio 101 ...>.
++ *
+  * 0x34 = high/rising, 0x38 = low/falling: checked on the E5, the active
+  * high wl1251 irq (gpio 73) only fires with 0x34.
+  */
+@@ -60,7 +65,9 @@
+ #define RY_IRQ_RAW	0x08
+ #define RY_IRQ_EN	0x10
+ #define RY_IRQ_DIS	0x14
+-#define RY_IRQ_ENABLED	0x18
++/* enable state. 0x0c mirrors what was written to 0x10 (register dump under
++ * linux on the E72); 0x18, used here before, did not follow a write to 0x14 */
++#define RY_IRQ_ENABLED	0x0c
+ #define RY_IRQ_ACK	0x20
+ #define RY_IRQ_EDGE	0x28
+ #define RY_IRQ_LEVEL	0x2c
