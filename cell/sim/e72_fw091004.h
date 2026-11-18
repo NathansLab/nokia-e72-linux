@@ -5,7 +5,7 @@
  * I = inferred (region delta of confirmed neighbours + plausible shape), N = not determined (0).
  * The E72 ISASW is NOT the E5 one shifted by one delta: code deltas run from +0x1738 (task 28) over
  * +0x4f88..+0x5944 to +0x76e4 (KASUMI) and +0xcaec (const tables); data deltas +0x2c..+0x5c8.
- * Full table with evidence: ~/Desktop/E72-Tools/analyse/cell/e72-addr-table.tsv (private).
+ * Full table with evidence: cell/e72-addr-table.tsv.
  * Physical layout = E5 with the top of RAM at 0x18000000 instead of 0x20000000 (RY_TOP), except the
  * code size, the SIM patch window and the SBIF RAM drives. */
 #ifndef E72_FW091004_H
