@@ -1,0 +1,56 @@
+From: Nathan Scheufele
+Subject: [PATCH] rapuyama-battery: Nokia E72 calibration (voltage, ntc, capacity curve, 3.3 V limit)
+
+---
+--- a/drivers/power/supply/rapuyama-battery.c
++++ b/drivers/power/supply/rapuyama-battery.c
+@@ -145,6 +145,41 @@
+ 	.no_charging = true,
+ 	.btemp_k = e5_btemp_k, .btemp_n = ARRAY_SIZE(e5_btemp_k),
+ 	.ocv = e5_ocv, .ocv_n = ARRAY_SIZE(e5_ocv),
++	.off_mv = 3300,
++	.ibat = true,
++	.ibat_mohm = 140,
++};
++
++/*
++ * Nokia E72 (fw 091.004), all from its isasw read on a ram dump:
++ * - voltage: the scaler 0xc6336848 (measurement 1) run for raw 0..1023 fits
++ *   mV = 2.06353 * raw + 2731.84 within 1.2 mV (the E5 line reads 68 mV low)
++ * - ntc: the same scaler, measurement 5, at raw 0, 16 ... 1008, 1023
++ * - em_batmon5 table 0xc6672c38 (live copy 0xc682b408), 18 x {used mAh, mV}
++ *   from 0 mAh at 4174 mV to 1060 mAh at 3100 mV (BP-4L, 1500 mAh nominal),
++ *   low limit 3300 mV (0xc6337e3c, live 0xc682b28a)
++ * - charging: bq24151 at 0x6b on hs i2c port 3, see e72.dts
++ * ibat_mohm is still the E5's value, not measured on an E72
++ */
++static const u16 e72_btemp_k[] = {
++	0, 399, 372, 358, 348, 341, 335, 331, 327, 323, 320, 317, 314, 312,
++	310, 307, 305, 303, 302, 300, 298, 297, 295, 294, 292, 291, 289, 288,
++	287, 285, 284, 283, 282, 280, 279, 278, 277, 275, 274, 273, 272, 271,
++	269, 268, 267, 265, 264, 263, 261, 260, 258, 257, 255, 253, 252, 250,
++	247, 245, 243, 240, 236, 232, 226, 217, 173,
++};
++
++static const struct ry_ocv e72_ocv[] = {
++	{ 3184, 0 }, { 3259, 1 }, { 3345, 1 }, { 3438, 2 }, { 3533, 3 },
++	{ 3621, 5 }, { 3661, 6 }, { 3681, 10 }, { 3703, 15 }, { 3759, 28 },
++	{ 3777, 35 }, { 3815, 52 }, { 3856, 59 }, { 3973, 79 }, { 4087, 94 },
++	{ 4150, 99 }, { 4174, 100 },
++};
++
++static const struct ry_bat_cal e72_cal = {
++	.vbat_mul = 20635, .vbat_add = 27318370,
++	.btemp_k = e72_btemp_k, .btemp_n = ARRAY_SIZE(e72_btemp_k),
++	.ocv = e72_ocv, .ocv_n = ARRAY_SIZE(e72_ocv),
+ 	.off_mv = 3300,
+ 	.ibat = true,
+ 	.ibat_mohm = 140,
+@@ -494,6 +529,7 @@
+ static const struct of_device_id ry_bat_of_match[] = {
+ 	{ .compatible = "nokia,rapuyama-battery", .data = &e6_cal },
+ 	{ .compatible = "nokia,rapuyama-e5-battery", .data = &e5_cal },
++	{ .compatible = "nokia,rapuyama-e72-battery", .data = &e72_cal },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, ry_bat_of_match);

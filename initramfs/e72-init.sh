@@ -1,5 +1,4 @@
 #!/bin/busybox sh
-# SPDX-License-Identifier: MIT
 # Nokia E72 bring-up /init: wraps the stock init.sh (usb shell on ttyGS0).
 # the E72 has no working display/keypad driver yet, so everything we learn
 # has to land in the ram log: 20 s after boot a hardware inventory goes to

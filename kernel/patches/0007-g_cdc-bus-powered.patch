@@ -1,0 +1,17 @@
+From: Nathan Scheufele
+Subject: [PATCH] g_cdc: bus powered, so the host grants the 500 mA the charger needs
+
+---
+--- a/drivers/usb/gadget/legacy/cdc2.c
++++ b/drivers/usb/gadget/legacy/cdc2.c
+@@ -130,7 +130,9 @@
+ 	.label			= "CDC Composite (ECM + ACM)",
+ 	.bConfigurationValue	= 1,
+ 	/* .iConfiguration = DYNAMIC */
+-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
++	/* bus powered: the phone asks the host for CONFIG_USB_GADGET_VBUS_DRAW
++	 * (500 mA) and the bq2415x only charges with that budget granted */
++	.bmAttributes		= 0,
+ };
+ 
+ /*-------------------------------------------------------------------------*/

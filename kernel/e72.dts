@@ -1,28 +1,31 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Nokia E72 (RM-530, fw 091.004). Same RapuYama SoC family and Symbian 9.3
- * as the E5-00, so this includes the upstream e5.dts and changes only what is
- * known to differ:
+ * Nokia E72 (RM-530, fw 091.004), first bring-up. Same RapuYama SoC family
+ * and Symbian 9.3 as the E5-00, so this starts from e5.dts and changes only
+ * what is known to differ:
  *
  *  - RAM: the E72 has 128 MB (0x10000000..0x17ffffff), the E5 256 MB. Every
  *    E5 address above 0x18000000 (ramcon 0x1f000000, isah 0x1f0f1000,
- *    symbian-top 0x1fb60000, superpage 0x1fd00000) moves down by
- *    0x08000000 (kernel built with CONFIG_RAPUYAMA_RAM_TOP=0x18000000,
- *    loader LinuxE72 with RB_LOGPHYS=0x17000000, log reader e72logs).
- *  - Linux RAM stops at the RAM log (0x17000000); the top 16 MB stay
- *    untouched (Symbian/ISASW data and the secure message pool live there).
- *  - scatter boot: the E72 never had a free contiguous 16/32 MB block, so
- *    LinuxE72 loads Image+dtb into single 4 KB pages and tramp_scatter.S
- *    copies them to 0x11600000 with the MMU off. All of 0x11600000..
- *    0x17000000 is Linux's, lowmem reclaim is off (e6.lowmem=0).
- *  - display: same RFBI/DISPC setup as the E5 (read back on the E72), works.
- *  - PA_SWD bridge on (e6.swd=1, needs the fw 091.004 entry from
- *    0002-secure-wdt-e72-fw-091.004.patch).
- *  - idle: nohlt at boot, WFI can be switched on at run time (patch 0004).
- *  - keypad: E72 pins and keymap below. Card slot, WLAN (WL1251 on SPI 2,
- *    GPIO 100/73) and GDMA nodes come unchanged from e5.dts (same values
- *    found on the E72), not yet tested on the device.
- *  - the E5 lights and battery nodes are removed (not checked on the E72).
+ *    symbian-top 0x1fb60000, superpage 0x1fd00000) does not exist here; the
+ *    E5 build wrote its log and handoff block into nothing and the kernel was
+ *    told RAM up to 0x20000000 -> instant reset after the handoff, empty
+ *    klog. Everything moves down by 0x08000000 (kernel built with
+ *    CONFIG_RAPUYAMA_RAM_TOP=0x18000000, loader LinuxE72 with
+ *    RB_LOGPHYS=0x17000000, log reader e72logs).
+ *  - Linux RAM stops at the ram log (0x17000000): the top 16 MB stay
+ *    untouched until the E72's own top-of-RAM layout (superpage, modem shm)
+ *    has been measured (ptdump). Costs RAM, removes guesswork.
+ *  - only the blocks every RapuYama shares are kept (l2c, intc, the E5 tick
+ *    timer, usb gadget, watchdog). Keypad, card slot, wlan, battery and
+ *    lights are E5 board parts and are removed until checked on the E72.
+ *  - display: kept. RFBI/DISPC read back exactly the E5 values on the E72
+ *    under linux (RFBI CONTROL 4, CONFIG0 0x00100460, cycles 8/8/8, DISPC
+ *    CONTROL 0x8b08), same 320x240 DCS command-mode setup. needs the cgc.
+ *  - no PA_SWD bridge (e6.swd=1), no idle WFI (nohlt), full log level.
+ *  - scatter boot: the E72 never had a free contiguous 16/32 MB block
+ *    ("no free ram block -4"), so LinuxE72 loads Image+dtb into single 4 kb
+ *    pages and tramp_scatter.S copies them to 0x11600000 with the mmu off.
+ *    The kernel sits at the bottom of Linux RAM, all of 0x11600000..
+ *    0x17000000 is Linux's, lowmem reclaim is not needed (e6.lowmem=0).
  */
 /include/ "e5.dts"
 
@@ -46,9 +49,6 @@
 	};
 
 	soc {
-		/delete-node/ light-pwm0;
-		/delete-node/ light-pwm1;
-		/delete-node/ battery;
 	};
 };
 
@@ -58,4 +58,42 @@
 	nokia,row-gpios = /bits/ 8 <26 119 35 24 120 121 38 36>;
 	nokia,col-gpios = /bits/ 8 <61 60 59 58 62 57 56>;
 	linux,keymap = <0x00000010 0x00010011 0x00020012 0x00030013 0x00040014 0x00050015 0x00060016 0x0100001e 0x0101001f 0x01020020 0x01030021 0x01040022 0x01050023 0x01060024 0x0200002c 0x0201002d 0x0202002e 0x0203002f 0x02040030 0x02050031 0x02060032 0x03000017 0x03010018 0x03020019 0x0303001d 0x03040028 0x03050001 0x0306000f 0x04000025 0x04010026 0x0402000e 0x0403003b 0x0404002a 0x0405003c 0x04060038 0x05000033 0x05010034 0x0502001c 0x0503007d 0x0504006b 0x05050027 0x0506003d 0x06000064 0x06010039 0x0602003e 0x0603003f 0x06040040 0x06050041 0x06060061 0x07000067 0x0701006c 0x07020069 0x0703006a 0x0704001c 0x07060042>;
+};
+
+/* gazoo adc battery with the E72 calibration (rapuyama-battery.c e72_cal) */
+&{/soc/battery} {
+	compatible = "nokia,rapuyama-e72-battery";
+	nokia,charger = <&charger>;
+};
+
+/* charging: isasw hs i2c port 3 (same port table, pads and clock setup as the
+ * E6, isasw 0xc63efc18), N3301 bq24151 at 0x6b, R3367 68 mOhm, OTG strapped
+ * low. isasw programs 4.16 V, 550 mA (usb host), 500 mA input, 150 mA
+ * termination, 3.4 V weak battery and never writes the safety register.
+ * 4.1 V here stays below the firmware's own limit. the driver only charges
+ * from an enumerated 500 mA usb host and at 5..40 C */
+&{/soc} {
+	i2c3: i2c@20032500 {
+		compatible = "nokia,rapuyama-hs-i2c";
+		reg = <0x20032500 0x80>, <0x20033000 0x100>,
+		      <0x20031a00 0x40>, <0x2003264c 0x4>;
+		clocks = <&cgc 0x13>;
+		clock-names = "ick";
+		clock-frequency = <100000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		charger: charger@6b {
+			compatible = "ti,bq24151";
+			reg = <0x6b>;
+			monitored-battery = <&{/soc/battery}>;
+			ti,usb-charger-detection = <&{/soc/battery/usb}>;
+			ti,current-limit = <500>;
+			ti,weak-battery-voltage = <3400>;
+			ti,battery-regulation-voltage = <4100>;
+			ti,charge-current = <550>;
+			ti,termination-current = <150>;
+			ti,resistor-sense = <68>;
+		};
+	};
 };

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-2.0-only
 # Nokia E72 (RM-530, 128 MB) kernel + dtb, first bring-up.
 # = the E5 wifi-only kernel config (build-e5.sh config(), E5_NOCELL path)
 #   + CONFIG_RAPUYAMA_RAM_TOP=0x18000000 (ramcon/isah/shm move to the E72's top of RAM)
@@ -53,11 +52,14 @@ config() {
 	S -e RD_XZ; S -d INITRAMFS_COMPRESSION_GZIP; S -e INITRAMFS_COMPRESSION_XZ
 	S -d BTRFS_FS; S -d KALLSYMS_ALL
 	# E72: tun + wireguard for a tailnet, 100 Hz tick (fewer wakeups than 1000)
-	S -e TUN; S -e WIREGUARD; S -d HZ_1000; S -e HZ_100
+	S -e I2C; S -e I2C_RAPUYAMA_HS; S -e CHARGER_BQ2415X; S -e TUN; S -e WIREGUARD; S -d HZ_1000; S -e HZ_100
 	S -e KEXEC; S -d STRICT_DEVMEM; S -e IKCONFIG; S -e IKCONFIG_PROC
 	# E72: 128 MB, top of ram at 0x18000000
 	S --set-val RAPUYAMA_RAM_TOP 0x18000000
 	I="$(cd "$HERE/../initramfs" && pwd)"; BB="$(realpath "$HERE/../../work/dl/busybox-armv5l")"
+	# upstream init.sh + one hook: /bin/e72-boot (card state, wlan, ssh, wfi) once the shell branch runs
+	awk '{print} /^if grep -q e6.usbsh \/proc\/cmdline; then/ {print "\t[ -x /bin/e72-boot ] && /bin/e72-boot"}' "$I/init.sh" > "$KOUT/init.e72main"
+	grep -q e72-boot "$KOUT/init.e72main" || { echo "init hook not inserted"; exit 1; }
 	cat > "$KOUT/initramfs.list" <<LIST
 dir /dev 755 0 0
 nod /dev/console 600 0 0 c 5 1
@@ -71,7 +73,7 @@ dir /root 700 0 0
 file /bin/busybox $BB 755 0 0
 slink /bin/sh busybox 777 0 0
 file /init $I/e72-init.sh 755 0 0
-file /init.e5 $I/init.sh 755 0 0
+file /init.e5 $KOUT/init.e72main 755 0 0
 file /sbin/init $I/init 755 0 0
 file /bin/e6sh $I/e6sh.sh 755 0 0
 LIST
@@ -89,6 +91,9 @@ dir /usr/share/udhcpc 755 0 0
 file /usr/bin/wifi $I/e5-wifi.sh 755 0 0
 file /usr/share/udhcpc/default.script $I/e5-dhcp.sh 755 0 0
 slink /usr/bin/ssh dbclient 777 0 0
+file /etc/passwd $I/e72-passwd 644 0 0
+file /bin/e72-boot $I/e72-boot.sh 755 0 0
+file /etc/shells $I/e72-shells 644 0 0
 LIST
 	S --set-str INITRAMFS_SOURCE "$KOUT/initramfs.list"
 	"${MAKE[@]}" olddefconfig

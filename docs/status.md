@@ -12,6 +12,12 @@ Three levels: **verified on device** (seen working on the E72), **built, unteste
 - Keyboard matrix: 8 of 55 keys pressed and seen at the expected row/column with the test module.
 - Power key input device (from the E5 watchdog driver) registers; not tested by pressing.
 
+- WLAN (WPA2, DHCP), microSD read/write, built-in keypad driver, WFI idle, kexec: see the table in the README.
+- Boot without any input: `initramfs/e72-boot.sh` mounts the card, brings up WLAN from `E:\linux\wpa\`, starts the dropbear SSH server (keys only, `E:\linux\authorized_keys`), switches WFI on, dims the lights.
+- Battery level and charging from a USB host: [charging.md](charging.md).
+- Keyboard light and panel brightness through `/sys/class/backlight`.
+- Current drawn from the battery (Gazoo meter, 2 s averages): 284 mA after boot, 147 mA with WLAN power save, panel brightness 40, keyboard light off and WFI.
+
 ## Built, untested
 
 - Built-in keypad driver with E72 pins and keymap from the device tree (patch 0003, `e72.dts`).
@@ -25,8 +31,7 @@ Three levels: **verified on device** (seen working on the E72), **built, unteste
 ## Not working / not done
 
 - **USB ethernet:** `usb0` sends, but receives only the first packet. Files go over the serial line for now (`tools/put.py`).
-- **Battery:** no level, no charging under Linux. The E5 battery node is removed from the E72 device tree.
-- **Lights:** keyboard light and backlight control not checked; the E5 light nodes are removed.
+- **Timer:** the hardware tick wakes the CPU 1000 times per second. Patch 0006 adds a one-shot mode (`e6.oneshot=1`); with WFI enabled, waits then stall, so it is off by default.
 - **Modem, calls, SMS, mobile data, audio:** not started.
 - **Keyboard layout:** Fn/Sym layers and the special keys still need a real layout.
 - **Power saving:** `nohlt` at boot, keyboard polled; WFI and interrupt-driven input are the next steps.

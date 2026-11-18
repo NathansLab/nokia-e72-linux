@@ -6,7 +6,7 @@ English version: [README.md](README.md). Die Anleitungen unter `docs/` sind auf 
 
 ![Linux-Konsole auf dem Display des E72](images/e72-first-linux-image.jpg)
 
-**Stand: frühe Inbetriebnahme.** Linux bootet, zeigt eine Konsole auf dem Display, bietet eine Root-Shell über USB und hält das Telefon über Symbians Secure-Watchdog hinaus am Leben. Ein benutzbares Telefon-Betriebssystem ist es noch nicht: keine Akkuanzeige, kein Laden, kein Modem, kein Ton.
+**Stand: frühe Inbetriebnahme.** Linux bootet, zeigt eine Konsole auf dem Display, bietet eine Root-Shell über USB und hält das Telefon über Symbians Secure-Watchdog hinaus am Leben. Ein benutzbares Telefon-Betriebssystem ist es noch nicht: WLAN, SSH, Akkuanzeige und Laden über USB gehen; Modem und Ton noch nicht.
 
 Langfristiges Ziel: ein energiesparendes Taschenterminal (Tastatur + Bildschirm + WLAN), mit dem man sich per SSH auf einen Rechner verbindet, auf dem Claude Code läuft.
 
@@ -21,7 +21,7 @@ Langfristiges Ziel: ein energiesparendes Taschenterminal (Tastatur + Bildschirm 
 | USB-Gadget-Shell (CDC ACM, seriell) | auf dem Gerät bestätigt | BusyBox-Shell auf `ttyGS0` |
 | Secure-Watchdog-Brücke (PA_SWD) | auf dem Gerät bestätigt | nur Firmware 091.004; Linux lief > 15 min (ohne Brücke: Neustart nach 3-4 min) |
 | Tastaturmatrix (8 Zeilen x 7 Spalten) | teilweise bestätigt | 8 Tasten mit dem Testmodul geprüft; die übrigen 47 folgen Symbians Abfragetabelle und wurden nicht einzeln gedrückt |
-| Tastaturtreiber im Kernel, Pins aus dem Device Tree (Patch 0003) | gebaut, ungetestet | im aktuellen `e72.dts`, noch nicht gebootet |
+| Tastaturtreiber im Kernel, Pins aus dem Device Tree (Patch 0003) | auf dem Gerät bestätigt | Treiber lädt; Tasten noch nicht einzeln geprüft |
 | WLAN (TI WL1251 an SPI 2, Power GPIO 100, IRQ GPIO 73) | auf dem Gerät bestätigt | braucht Firmware + NVS vom eigenen Telefon, siehe [docs/wlan.md](docs/wlan.md); WPA2, DHCP und Ping ins Internet geprüft am 2026-11-18 |
 | microSD-Slot, GDMA | auf dem Gerät bestätigt | Knoten aus `e5.dts`, Registerwerte mit dem Symbian des E72 abgeglichen |
 | WFI-Leerlauf, zur Laufzeit schaltbar (Patch 0004) | auf dem Gerät bestätigt | Start mit `nohlt`; `echo 1 > /sys/module/idle/parameters/wfi`; rund 97 % der Leerlaufzeit im WFI |
@@ -29,8 +29,10 @@ Langfristiges Ziel: ein energiesparendes Taschenterminal (Tastatur + Bildschirm 
 | Alpine-Userland im Initramfs (wpa_supplicant, iw, dbclient/ssh, scp, kexec, apk) | teilweise bestätigt | `initramfs/e72-rootfs.sh` |
 | TUN / WireGuard, 100-Hz-Takt | gebaut, ungetestet | |
 | USB-Ethernet (CDC ECM, `usb0`) | funktioniert nicht | sendet, empfängt aber nur das erste Paket |
-| Akkustand, Laden | nicht umgesetzt | Linux nicht mit fast leerem Akku laufen lassen |
-| Tastatur-/Displaybeleuchtung | nicht umgesetzt | Backlight-Gerät vorhanden, Steuerung nicht geprüft |
+| Akkustand und Laden über USB (bq24151, Patches 0005 und 0007) | auf dem Gerät bestätigt | lädt mit etwa 390 mA an einem USB-Host, nur bei 5–40 °C; Steckernetzteil und 2-mm-Buchse nicht, siehe [docs/charging.md](docs/charging.md) |
+| SSH-Server (dropbear), WLAN-Einstellungen dauerhaft auf der Karte | auf dem Gerät bestätigt | `initramfs/e72-boot.sh`: WLAN, SSH und WFI starten ohne Zutun |
+| Zeitgeber ohne festen 1-kHz-Takt (Patch 0006, `e6.oneshot=1`) | experimentell | läuft, aber zusammen mit WFI bleiben Wartezeiten hängen; standardmäßig aus |
+| Tastaturlicht und Displayhelligkeit | auf dem Gerät bestätigt | `/sys/class/backlight/gazoo-pwm0` (0–127) und `panel` (0–255) |
 | Modem, Anrufe, SMS, Ton | nicht umgesetzt | |
 
 Details und offene Punkte: [docs/status.md](docs/status.md).
@@ -60,7 +62,7 @@ Fertige Binärdateien gibt es nicht (siehe [Rechtliches](#rechtliches)); alles w
 
 | Pfad | Inhalt |
 | --- | --- |
-| `kernel/patches/` | vier Patches für den Upstream-Kernel (`fluffleswaffles/linux`, Zweig `e5`) |
+| `kernel/patches/` | sieben Patches für den Upstream-Kernel (`fluffleswaffles/linux`, Zweig `e5`) |
 | `kernel/e72.dts` | Device Tree des E72, bindet upstream `e5.dts` ein |
 | `kernel/build-e72.sh` | Kernelkonfiguration und Build (gehört nach `linux/kernel/` im Upstream-Baum) |
 | `kernel/e72kp-testmodule/` | Tastatur-Testmodul, ohne Neustart ladbar |
