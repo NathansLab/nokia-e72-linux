@@ -1,0 +1,55 @@
+From: Nathan Scheufele
+Subject: [PATCH] secure_wdt: write the new token back to the modem's slot (for kexec), untested
+
+---
+--- a/arch/arm/mach-rapuyama/secure_wdt.c
++++ b/arch/arm/mach-rapuyama/secure_wdt.c
+@@ -13,6 +13,7 @@
+ #include <linux/workqueue.h>
+ #include <asm/cacheflush.h>
+ #include <asm/early_ioremap.h>
++#include <asm/outercache.h>
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+ 
+@@ -130,6 +131,9 @@
+ static struct swd_call *swd;
+ static struct delayed_work swd_work;
+ static u32 swd_calls;
++/* ISASW's own token slot (guest data), kept mapped for the write-back */
++static u8 *swd_token_map;
++static phys_addr_t swd_token_pa;
+ static int swd_keep_state;	/* E5: 1 all symbian pages safe, -1 not */
+ static const struct swd_fw *swd_sel __initdata;	/* E5: entry chosen by its signatures */
+ 
+@@ -410,6 +414,19 @@
+ 		return;
+ 	}
+ 	swd->token = swd->response >> 16;
++	/*
++	 * ISASW's pet (E72 0xc6366a20) stores the new token back into its slot
++	 * (strh at 0xc6366a6c, slot pointer = literal at code +token_lit, +2).
++	 * Do the same, else a kexec'd kernel starts from the token Symbian left
++	 * and PA_SWD sees a stale one once Linux has petted twice.
++	 */
++	if (swd_token_map) {
++		put_unaligned_le16(swd->token,
++				   swd_token_map + offset_in_page(swd_token_pa));
++		flush_cache_all();
++		outer_flush_range(swd_token_pa & PAGE_MASK,
++				  (swd_token_pa & PAGE_MASK) + PAGE_SIZE);
++	}
+ 	schedule_delayed_work(&swd_work, (timeout - 30) * HZ);
+ }
+ 
+@@ -494,6 +511,10 @@
+ 	swd->free_fn = fw->free_fn;
+ 	swd->pet_fn = fw->pet_fn;
+ 	swd->token = get_unaligned_le16(guest + token_ptr - GUEST_VIRT + 2);
++	swd_token_pa = fw->guest_phys + token_ptr - GUEST_VIRT + 2;
++	swd_token_map = memremap(swd_token_pa & PAGE_MASK, PAGE_SIZE, MEMREMAP_WB);
++	if (!swd_token_map)
++		pr_warn("rapuyama-swd: token slot not mapped, no write-back (kexec)\n");
+ 	INIT_DELAYED_WORK(&swd_work, swd_ping);
+ 	pr_info("rapuyama-swd: PA_SWD 0x1f ready (%s), token %u guest stack %08x\n",
+ 		fw->name, swd->token, sp);

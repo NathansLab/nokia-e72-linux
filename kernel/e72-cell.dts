@@ -1,0 +1,35 @@
+/* E72 (RM-530, fw 091.004) cellular development: e72.dts + the MCU/DSP MDI rings, the
+ * cbus hardware semaphore and the SIM bridge, as e5-cell.dts does for the E5. Needs the
+ * VMSPLIT_3G25 kernel from build-e72-cell.sh. NOT phone-tested (2026-11-18).
+ * Checked against the E72 RAM dump (dump1), see e5-cell/sim/e72_fw091004.h:
+ *  - MDI state c683aa08 +0x33c/+0x340 -> rings c601bce0/c601bdf0 = pa 0x30003ce0/0x30003df0
+ *    (c6018000 -> 0x30000000 in the E72 page tables), doorbells c6040280 = pa 0x20040280
+ *  - irq_register(0x13/0x15/0x17) at E72 isasw c63ce958..c63ce986, same order as the E5
+ *  - SIM controller c6038300 = pa 0x20038300, SIM HAL irq_register(0xb1..0xb6) at c6392872..
+ * The mdi driver picks its memory layout by machine compatible: it needs the "nokia,e72"
+ * entry from kernel/e72-cell-mdi.patch (pa 0x17d50000, PA_SWD stack offset 0xe4000). */
+/include/ "e72.dts"
+
+/ {
+	soc {
+		/* + hardware semaphore 0 (pa 0x20040204), taken by the modem around every
+		 * cbus transfer (E72 isasw sema take c63dde3c / give c63dde54) */
+		watchdog@20030700 {
+			reg = <0x20030700 0x40>, <0x200336c4 0x4>, <0x20033114 0x4>,
+			      <0x20040204 0x4>;
+		};
+
+		mdi@30003ce0 {
+			compatible = "nokia,e5-mdi";
+			reg = <0x30003ce0 0x220>, <0x20040280 0xc>;
+			interrupts = <19>, <21>, <23>;
+			interrupt-names = "rx", "tx", "event";
+		};
+
+		sim@20038300 {
+			compatible = "nokia,e5-sim-bridge";
+			reg = <0x20038300 0x30>;
+			interrupts = <177>, <178>, <179>, <180>, <181>, <182>;
+		};
+	};
+};

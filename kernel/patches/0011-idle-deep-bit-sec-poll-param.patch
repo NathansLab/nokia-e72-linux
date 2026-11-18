@@ -1,0 +1,138 @@
+From: Nathan Scheufele
+Subject: [PATCH] idle: optional mode 3/4 bit (idle.deep), irqchip: sec_poll_ms parameter, untested
+
+---
+--- a/arch/arm/mach-rapuyama/idle.c
++++ b/arch/arm/mach-rapuyama/idle.c
+@@ -20,19 +20,39 @@
+ #define RY_CLOCK_READY BIT(10)
+ #define RY_CLOCK_BUSY GENMASK(15, 14)
+ #define RY_IDLE_CONSTRAINED BIT(3)
++/*
++ * E72 power.dll (fw 091.004, image 0x80116820): CpuIdle 0x80118324 picks a
++ * mode 0..6 (0x801181b0). Modes 3/4 = WFI with the tick stretched over the
++ * idle time (0x80117cc8) and bit 1 of 0x200331a0 set around the WFI
++ * (0x200331a4 = set, 0x200331a8 = clear); mode 5 = the same with the bit
++ * clear, mode 6 = plain WFI (what this file did so far). Modes 3/4 are
++ * chosen from 2 ms of idle time on (table 0x80119070) if no driver asks
++ * for a wake-up latency below 75/3 (units not determined).
++ */
++#define RY_IDLE_DEEP_SET	0x1a4
++#define RY_IDLE_DEEP_CLR	0x1a8
++#define RY_IDLE_DEEP_BIT	BIT(1)
++#define RY_TICK_PHYS		0x20040180
++#define RY_TICK_COUNT		0x24	/* down counter, irq 35 below zero */
++#define RY_TICK_PER_MS		7680
++#define RY_DEEP_MIN_MS		2
+ 
+-static bool requested, ready;
+-static void __iomem *clock, *l2;
++static bool requested, ready, deep;
++static void __iomem *clock, *l2, *tick;
+ static void *scratch;
+-static u64 entries, skipped, wait_ns;
++static u64 entries, skipped, wait_ns, deep_entries;
+ 
+ void rapuyama_idle_wfi(void *scratch, void __iomem *l2_sync, void __iomem *clock);
+ 
+ static int __init rapuyama_idle_param(char *s){return kstrtobool(s, &requested);}
+ early_param("e6.idle", rapuyama_idle_param);
++/* experimental, off by default: Symbian's mode 3/4 bit for idle >= 2 ms */
++module_param(deep, bool, 0644);
++MODULE_PARM_DESC(deep, "set 0x200331a0 bit 1 around WFI when the next timer event is >= 2 ms away");
+ 
+ static void rapuyama_cpu_idle(void){
+ 	unsigned long flags;
++	bool d = false;
+ 	u64 start;
+ 
+ 	/* hlt can take effect before scratch memory and the device maps exist */
+@@ -45,9 +65,20 @@
+ 	asm volatile("mrs %0, cpsr\n\tcpsid f" : "=r"(flags) : : "memory", "cc");
+ 	/* power.dll's constrained path keeps the system clocks available */
+ 	writel_relaxed(RY_IDLE_CONSTRAINED, clock+0x144);
++	/* time to the next event straight from the tick counter, as power.dll
++	 * does (only far away with the one-shot tick, e6.oneshot=1) */
++	if(READ_ONCE(deep) && tick &&
++		(s32)readl_relaxed(tick+RY_TICK_COUNT) >= RY_DEEP_MIN_MS*RY_TICK_PER_MS){
++		writel_relaxed(RY_IDLE_DEEP_BIT, clock+RY_IDLE_DEEP_SET);
++		d = true;
++	}
+ 	start=ktime_get_mono_fast_ns();
+ 	rapuyama_idle_wfi(scratch, l2+0x730, clock);
+ 	wait_ns+=ktime_get_mono_fast_ns()-start;
++	if(d){
++		writel_relaxed(RY_IDLE_DEEP_BIT, clock+RY_IDLE_DEEP_CLR);
++		deep_entries++;
++	}
+ 	entries++;
+ 	if(!(flags&PSR_F_BIT)){local_fiq_enable();}
+ }
+@@ -58,13 +89,13 @@
+ 
+ static int rapuyama_idle_show(struct seq_file *f, void *unused){
+ 	unsigned long flags;
+-	u64 n, skip, ns;
++	u64 n, skip, ns, dn;
+ 
+ 	local_irq_save(flags);
+-	n=entries;skip=skipped;ns=wait_ns;
++	n=entries;skip=skipped;ns=wait_ns;dn=deep_entries;
+ 	local_irq_restore(flags);
+-	seq_printf(f, "requested %u\nready %u\nentries %llu\nskipped %llu\nwait_ns %llu\n",
+-		requested, READ_ONCE(ready), n, skip, ns);
++	seq_printf(f, "requested %u\nready %u\nentries %llu\nskipped %llu\nwait_ns %llu\ndeep_entries %llu\n",
++		requested, READ_ONCE(ready), n, skip, ns, dn);
+ 	return 0;
+ }
+ DEFINE_SHOW_ATTRIBUTE(rapuyama_idle);
+@@ -101,6 +132,8 @@
+ 	if(!requested){return 0;}
+ 	clock=ioremap(0x20033000, 0x200);
+ 	l2=ioremap(0x20500000, 0x1000);
++	/* optional: without it the deep bit is never used */
++	tick=ioremap(RY_TICK_PHYS, 0x80);
+ 	if(!clock || !l2){ret=-ENOMEM;goto unmap;}
+ 	if(readl(l2)!=0x41000486 || !(readl(l2+0x100)&1)){
+ 		ret=-ENODEV;
+@@ -123,7 +156,8 @@
+ unmap:
+ 	if(clock){iounmap(clock);}
+ 	if(l2){iounmap(l2);}
+-	clock=l2=NULL;
++	if(tick){iounmap(tick);}
++	clock=l2=tick=NULL;
+ 	pr_err("rapuyama-idle: preparation failed (%d), keeping polling idle\n", ret);
+ 	return ret;
+ }
+--- a/drivers/irqchip/irq-rapuyama.c
++++ b/drivers/irqchip/irq-rapuyama.c
+@@ -517,7 +517,17 @@
+  * works even if the aggregate main line gets masked.
+  */
+ #define SEC_SVC_DELAY_MS	3000
+-#define SEC_POLL_MS		10
++/*
++ * the 10 ms ack poll wakes the cpu 100 times a second and defeats the
++ * one-shot tick. The E72 resets came from PA_SWD (secure_wdt.c bridge), not
++ * from this IPC; 0 = arm the lines once and stop polling (to be tested).
++ * Note: +0x0c is the enable state (it equals what was written to +0x10 in
++ * test11, also after the ~0 write to +0x14 left +0x18 untouched), so the
++ * "en" read from +0x18 at init is not Symbian's enabled set.
++ */
++static unsigned int sec_poll_ms = 10;
++module_param(sec_poll_ms, uint, 0644);
++MODULE_PARM_DESC(sec_poll_ms, "secondary bank ack poll interval in ms, 0 = off");
+ 
+ static void rapuyama_sec_work_fn(struct work_struct *w)
+ {
+@@ -544,7 +554,8 @@
+ 			writel_relaxed(pend, bank + 0x20);	/* ack */
+ 	}
+ 
+-	schedule_delayed_work(&sec_work, msecs_to_jiffies(SEC_POLL_MS));
++	if (READ_ONCE(sec_poll_ms))
++		schedule_delayed_work(&sec_work, msecs_to_jiffies(sec_poll_ms));
+ }
+ 
+ static int __init rapuyama_sec_service_start(void)

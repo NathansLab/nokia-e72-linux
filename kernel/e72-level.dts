@@ -1,0 +1,10 @@
+/* E72 test variant: wl1251 interrupt (gpio 73) as a level interrupt, the way
+ * Symbian's WLAN driver runs the pin (mode 0 + polarity high, masked in the
+ * isr, unmasked after the deferred work). An edge on this pin seems to get
+ * lost during longer WFI periods (one-shot tick); a level cannot.
+ * Needs the wl1251 level-irq patch. 4 = IRQ_TYPE_LEVEL_HIGH. NOT yet run. */
+/include/ "e72.dts"
+
+&{/soc/spi@20020600/wifi@0} {
+	interrupts-extended = <&gpio 73 4>;
+};

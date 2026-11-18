@@ -17,10 +17,9 @@ have="$(git -C "$U" rev-parse HEAD 2>/dev/null || echo unknown)"
 [ "$have" = "$want" ] || echo "warning: upstream is at $have, tested with $want" >&2
 
 # board files
-install -m 644 "$HERE/kernel/e72.dts"            "$U/linux/boot/e72.dts"
-install -m 755 "$HERE/kernel/build-e72.sh"       "$U/linux/kernel/build-e72.sh"
-install -m 755 "$HERE/initramfs/e72-init.sh"     "$U/linux/initramfs/e72-init.sh"
-install -m 755 "$HERE/initramfs/e72-rootfs.sh"   "$U/linux/initramfs/e72-rootfs.sh"
+for f in "$HERE"/kernel/e72*.dts; do install -m 644 "$f" "$U/linux/boot/"; done
+for f in "$HERE"/kernel/build-e72*.sh; do install -m 755 "$f" "$U/linux/kernel/"; done
+for f in "$HERE"/initramfs/e72*; do install -m 755 "$f" "$U/linux/initramfs/"; done
 
 # build helpers: native arm64 kernel build image, podman stand-in for the
 # symbian-build container, minimal toolchain check used by its Dockerfile

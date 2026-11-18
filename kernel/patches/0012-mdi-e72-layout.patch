@@ -1,0 +1,18 @@
+From: Nathan Scheufele
+Subject: [PATCH] soc: rapuyama mdi: E72 memory layout (fw 091.004), untested
+
+---
+--- a/drivers/soc/rapuyama/mdi.c	2026-11-18 07:09:10
++++ b/drivers/soc/rapuyama/mdi.c	2026-11-18 07:09:10
+@@ -42,6 +42,11 @@
+ 	 * MB is other memory); PA_SWD stack sp c68d7e6c */
+ 	{ "nokia,e5", RY_TOP(0x1fd50000), 0xc6800000, 0x280000,
+ 	  0x10140000, 0xcb500000, 0x80000, 0xd2000, 0x6000 },
++	/* E72 RM-530 fw 091.004: ISASW data pa 0x17d50000 (RY_TOP with RAM_TOP
++	 * 0x18000000), DSP buffers as on the E5; PA_SWD stack = parked task 0x10,
++	 * sp c68e9e6c (secure_wdt.c sp_off 0x36438) */
++	{ "nokia,e72", RY_TOP(0x1fd50000), 0xc6800000, 0x280000,
++	  0x10140000, 0xcb500000, 0x80000, 0xe4000, 0x6000 },
+ };
+ static const struct mdi_layout *L;
+ #define MDI_AP_PHYS		(L->ap_phys)

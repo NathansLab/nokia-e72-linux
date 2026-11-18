@@ -1,0 +1,111 @@
+From: Nathan Scheufele
+Subject: [PATCH] wl1251: support a level interrupt from the device tree (masked until irq_work ran), untested
+
+---
+--- a/drivers/net/wireless/ti/wl1251/main.c
++++ b/drivers/net/wireless/ti/wl1251/main.c
+@@ -301,6 +301,8 @@
+ 
+ out:
+ 	mutex_unlock(&wl->mutex);
++	if (wl->if_ops->irq_done)
++		wl->if_ops->irq_done(wl);
+ }
+ 
+ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
+--- a/drivers/net/wireless/ti/wl1251/spi.c
++++ b/drivers/net/wireless/ti/wl1251/spi.c
+@@ -24,16 +24,29 @@
+ struct wl1251_spi {
+ 	struct spi_device *spi;
+ 	struct gpio_desc *power_gpio;
++	bool level;		/* level irq: the isr masks it until irq_work ran */
++	unsigned long masked;	/* bit 0: masked by the isr */
+ };
+ 
+ static irqreturn_t wl1251_irq(int irq, void *cookie)
+ {
+ 	struct wl1251 *wl;
++	struct wl1251_spi *wl_spi;
+ 
+ 	wl1251_debug(DEBUG_IRQ, "IRQ");
+ 
+ 	wl = cookie;
++	wl_spi = wl->if_priv;
+ 
++	/*
++	 * RapuYama: Symbian's WLAN HPA (wlanhpa.dll) runs this pin as a level
++	 * irq, masks it in the isr and unmasks it after its DFC. An edge can be
++	 * missed while the cpu sleeps longer in WFI and the line then stays high
++	 * for ever, a level irq can't be lost that way.
++	 */
++	if (wl_spi->level && !test_and_set_bit(0, &wl_spi->masked))
++		disable_irq_nosync(irq);
++
+ 	ieee80211_queue_work(wl->hw, &wl->irq_work);
+ 
+ 	return IRQ_HANDLED;
+@@ -202,9 +215,22 @@
+ 
+ static void wl1251_spi_enable_irq(struct wl1251 *wl)
+ {
++	struct wl1251_spi *wl_spi = wl->if_priv;
++
++	/* a power cycle cancelled irq_work while the isr held the level irq */
++	if (test_and_clear_bit(0, &wl_spi->masked))
++		enable_irq(wl->irq);
+ 	return enable_irq(wl->irq);
+ }
+ 
++static void wl1251_spi_irq_done(struct wl1251 *wl)
++{
++	struct wl1251_spi *wl_spi = wl->if_priv;
++
++	if (test_and_clear_bit(0, &wl_spi->masked))
++		enable_irq(wl->irq);
++}
++
+ static void wl1251_spi_disable_irq(struct wl1251 *wl)
+ {
+ 	return disable_irq(wl->irq);
+@@ -226,6 +252,7 @@
+ 	.reset = wl1251_spi_reset_wake,
+ 	.enable_irq = wl1251_spi_enable_irq,
+ 	.disable_irq = wl1251_spi_disable_irq,
++	.irq_done = wl1251_spi_irq_done,
+ 	.power = wl1251_spi_set_power,
+ };
+ 
+@@ -298,12 +325,18 @@
+ 	}
+ 
+ 	/*
+-	 * Keep an edge type from the firmware node (the handler only queues
+-	 * work, so a level type would storm), default to rising.
++	 * Keep the type from the firmware node, default to rising edge. A
++	 * level type is masked by the isr until irq_work has run (see
++	 * wl1251_irq), so it does not storm.
+ 	 */
+-	irq_type = irq_get_trigger_type(wl->irq) & IRQ_TYPE_EDGE_BOTH;
++	irq_type = irq_get_trigger_type(wl->irq);
++	if (irq_type & IRQ_TYPE_LEVEL_MASK)
++		irq_type &= IRQ_TYPE_LEVEL_MASK;
++	else
++		irq_type &= IRQ_TYPE_EDGE_BOTH;
+ 	if (!irq_type)
+ 		irq_type = IRQ_TYPE_EDGE_RISING;
++	wl_spi->level = !!(irq_type & IRQ_TYPE_LEVEL_MASK);
+ 	irq_set_irq_type(wl->irq, irq_type);
+ 	wl1251_info("irq %d trigger type %u", wl->irq, irq_type);
+ 
+--- a/drivers/net/wireless/ti/wl1251/wl1251.h
++++ b/drivers/net/wireless/ti/wl1251/wl1251.h
+@@ -253,6 +253,8 @@
+ 	void (*reset)(struct wl1251 *wl);
+ 	void (*enable_irq)(struct wl1251 *wl);
+ 	void (*disable_irq)(struct wl1251 *wl);
++	/* optional: irq_work is done, a level irq masked by the isr may come back */
++	void (*irq_done)(struct wl1251 *wl);
+ };
+ 
+ struct wl1251 {

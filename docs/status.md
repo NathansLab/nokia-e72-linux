@@ -33,7 +33,8 @@ Three levels: **verified on device** (seen working on the E72), **built, unteste
 
 - **USB ethernet:** `usb0` sends, but receives only the first packet. Files go over the serial line for now (`tools/put.py`).
 - **Timer:** the hardware tick wakes the CPU 1000 times per second. Patch 0006 adds a one-shot mode (`e6.oneshot=1`); with WFI enabled the WLAN chip then gets almost no interrupts, so it is off by default. The counters themselves keep running in WFI and wake the CPU on time (measured).
-- **Modem, calls, SMS, mobile data:** not started.
+- **Modem, calls, SMS, mobile data:** kernel side prepared (`build-e72-cell.sh`, patch 0012), userspace runtime not ported, nothing run.
+- **kexec:** works shortly after boot, failed twice later; suspected cause and an untested fix (patch 0009) in [idle-and-kexec.md](idle-and-kexec.md).
 - **Vibra, microphones:** a vibra driver (patch 0008) and a silent microphone probe module are built but have not run on the device; speaker, earpiece and headset are not started. See [audio-vibra.md](audio-vibra.md).
 - **Power saving:** `nohlt` at boot, keyboard polled; WFI and interrupt-driven input are the next steps.
 - **Other firmware versions / E72 variants:** only RM-530 with 091.004 has a watchdog entry.

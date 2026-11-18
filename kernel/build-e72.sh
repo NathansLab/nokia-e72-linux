@@ -109,6 +109,7 @@ case "${1:-build}" in
 	build)  [ -f "$KOUT/.config" ] || config
 		"${MAKE[@]}" -j"$(nproc)" Image
 		dtc -I dts -O dtb -o "$KOUT/e72.dtb" "$HERE/../boot/e72.dts"
+		dtc -I dts -O dtb -o "$KOUT/e72-level.dtb" "$HERE/../boot/e72-level.dts" 2>/dev/null
 		ls -la "$KOUT/arch/arm/boot/Image" "$KOUT/e72.dtb" ;;
 	*) echo "usage: $0 [config|build]"; exit 1 ;;
 esac

@@ -54,6 +54,7 @@ Background:
 - [Secure watchdog bridge](docs/secure-watchdog.md), including what to redo for another firmware version
 - [Keyboard](docs/keyboard.md)
 - [Audio and vibra](docs/audio-vibra.md)
+- [Idle, wake-up and kexec](docs/idle-and-kexec.md)
 - [WLAN and card slot](docs/wlan.md)
 - [Hardware notes](docs/hardware.md)
 
