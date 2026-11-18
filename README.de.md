@@ -25,7 +25,7 @@ Langfristiges Ziel: ein energiesparendes Taschenterminal (Tastatur + Bildschirm 
 | WLAN (TI WL1251 an SPI 2, Power GPIO 100, IRQ GPIO 73) | auf dem Gerät bestätigt | braucht Firmware + NVS vom eigenen Telefon, siehe [docs/wlan.md](docs/wlan.md); WPA2, DHCP und Ping ins Internet geprüft am 2026-11-18 |
 | microSD-Slot, GDMA | auf dem Gerät bestätigt | Knoten aus `e5.dts`, Registerwerte mit dem Symbian des E72 abgeglichen |
 | WFI-Leerlauf, zur Laufzeit schaltbar (Patch 0004) | auf dem Gerät bestätigt | Start mit `nohlt`; `echo 1 > /sys/module/idle/parameters/wfi`; rund 97 % der Leerlaufzeit im WFI |
-| kexec (neuer Kernel ohne Umweg über Symbian) | gebaut, ungetestet | `CONFIG_KEXEC=y`, `kexec` im Initramfs |
+| kexec (neuer Kernel ohne Umweg über Symbian) | auf dem Gerät bestätigt | `CONFIG_KEXEC=y`, `kexec` im Initramfs; Kernel per WLAN mit `tools/wput.py` geschickt, Watchdog-Brücke, Karte und WLAN danach wieder da |
 | Alpine-Userland im Initramfs (wpa_supplicant, iw, dbclient/ssh, scp, kexec, apk) | teilweise bestätigt | `initramfs/e72-rootfs.sh` |
 | TUN / WireGuard, 100-Hz-Takt | gebaut, ungetestet | |
 | USB-Ethernet (CDC ECM, `usb0`) | funktioniert nicht | sendet, empfängt aber nur das erste Paket |

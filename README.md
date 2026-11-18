@@ -25,7 +25,7 @@ Long-term goal: an energy-efficient pocket terminal (keyboard + screen + WLAN) u
 | WLAN (TI WL1251 on SPI 2, power GPIO 100, IRQ GPIO 73) | verified on device | needs firmware + NVS from your own phone, see [docs/wlan.md](docs/wlan.md); WPA2, DHCP and internet ping checked 2026-11-18 |
 | microSD slot, GDMA | verified on device | nodes inherited from `e5.dts`, register values checked against the E72's Symbian |
 | WFI idle, switchable at run time (patch 0004) | verified on device | boots with `nohlt`; `echo 1 > /sys/module/idle/parameters/wfi`; about 97 % of idle time in WFI |
-| kexec (new kernel without going through Symbian) | built, untested | `CONFIG_KEXEC=y`, `kexec` in the initramfs |
+| kexec (new kernel without going through Symbian) | verified on device | `CONFIG_KEXEC=y`, `kexec` in the initramfs; kernel sent over WLAN with `tools/wput.py`, watchdog bridge, card and WLAN up again afterwards |
 | Alpine userland in the initramfs (wpa_supplicant, iw, dbclient/ssh, scp, kexec, apk) | partly verified | `initramfs/e72-rootfs.sh` |
 | TUN / WireGuard, 100 Hz tick | built, untested | |
 | USB ethernet (CDC ECM, `usb0`) | not working | sends, but receives only the first packet |
