@@ -20,3 +20,13 @@ Status 2026-11-18. Everything here comes from static analysis of a RAM image of 
 - Headset: TPA6130A2 amplifier (I2C address 0x60), fed by the Gazoo.
 - Speaker: class-D stage inside the Gazoo; its registers are not decoded.
 - Under Symbian all PCM goes through the DSP. Whether the earpiece codec can be fed from the ARM side over I2S is not determined.
+
+## Sound without the DSP (second analysis, 2026-11-18)
+
+- No serial audio block that the ARM side can program is known. The candidates (`0x20020500`, `0x20020700`, `0x20020b00`, with DMA request lines next to the SPI blocks) are not touched by any ARM code; their layout and reachability are not determined. So there is no ALSA driver yet.
+- The earpiece codec can make sound on its own over I2C, needing only its 38.4 MHz clock: its beep generator, or a loop from its own digital microphones to the earpiece. The modem software's full register sequence is in `audio/aic3254_isasw_sequence.txt`, the test script in `audio/e72-audio-probe.sh` (`probe` and `clock` are silent, `beep` and `loop` require `--audible`). Whether the clock runs under Linux is open. Nothing of this has run.
+- Headphone amplifier (0x60): the RAM image holds a detection response that does not fit a TPA6130A2. Read its registers before trusting the mainline driver. Its input comes only from the Gazoo.
+- Pad mux found: a 4-bit field per pin in the word at `0x20031810 + (pin>>3)*0x10` (set +4, clear +8); `audio/padmux.py` converts.
+- The sensor at 0x29 is a TSL2563 ambient light sensor. Driver and node are in the kernel; `e72-lights` sets display brightness and keyboard light from it. Not yet run.
+- The FM radio is the BCM2048 inside the Bluetooth chip; kernel 6.12 has no driver for it.
+- Vibra re-checked: 0x23 in mask 0x37 is the complete "on"; both bridge halves can never be on together.

@@ -1,0 +1,71 @@
+TLV320AIC3254 (N2101, I2C 0x18 on HS-I2C port 3 = Linux i2c3) as programmed by ISASW fw 091.004
+hw_audio_aic3254.c, static disassembly of dump1 (nothing run). Register semantics from TI SLAA408A.
+Helpers: c6307936(reg,val) = write (reg 0xff = delay val ms), c6307968(reg) = read,
+c6307970(ptr,len) = raw block write (first byte = start register), slave addr at c6826ee8 = 0x18.
+"P0 Rn" = page 0 register n (decimal). Writes in order.
+
+== c6307e18  probe / park (also called from the power-off path c6308064)
+  pad mux GenOut104 -> function 1 (0x200318e0 field 0: clear 7, set 1)
+  GIO_MODE(104, 0x22); GenOut104 low, 2 ms, high                (EANC_RST pulse)
+  P0 R1 = 0x01        software reset
+  P1 R1 = 0x00        AVDD weakly tied to DVDD (LDO still off)
+  P1 R2 = 0x28        AVDD LDO 1.77 V, LDO off, analog blocks disabled
+  P1 R123 = 0x01      reference powers up in 40 ms with the analog blocks
+  P1 R10 = 0x63       CM 0.75 V, HP CM 1.5 V, HPL/HPR powered from LDOIN, LDOIN range 1.8-3.6 V
+  P1 R11 = 0x00       over-current protection off
+  P0 R55 = 0x04       MISO = general purpose output (value 0)
+  P0 R53 = 0x10       DOUT disabled, bus keeper off
+  c63081c2: P0 R62 |= 0x40 (miniDSP_A aux bit A), delay 5 ms
+
+== c6308004  codec power resource on (hw_audio_bb5.c)
+  ISASW clock resource 0x2a on (c63de6cc(0x2a,1,0); this is the MCLK = SysClk384 request, inferred)
+  GenOut104 mux 1, reset pulse as above
+  Gazoo dev1 reg 0x10 bit 4 = 1        (inferred: VDigimic enable for the EANC mics)
+  pad mux GenIO78, GenIO79 -> function 2   (0x200318a0: clear 7<<24 / 7<<28, set 2<<24 / 2<<28)
+== c6308064  codec power resource off
+  P0 R62 &= ~0x40; reset pulse; c6307e18; Gazoo dev1 reg 0x0f bit 4 = 1; clock resource 0x2a off
+
+== building blocks
+c63079c8 analog on : P0 R55 |= 1 (MISO high); P1 R2 = (R2|1)&~8 (=0x21: AVDD LDO on, analog on);
+                     wait 2 ms; P1 R1 = 0x08 (weak AVDD-DVDD link off); page 0
+c6307a1a analog off: P1 R1 = 0; P1 R2 = (R2&~1)|8; P0 R55 &= ~1
+c6307a5e PLL on    : clock res 0x2a on; P0 R4 = 0x03 (PLL_CLKIN = MCLK, CODEC_CLKIN = PLL);
+                     R6 J = 5; R7/R8 D = 0x1db0 = 7600; R5 = 0xa1 (PLL on, P = 2, R = 1)
+                     PLL = 38.4 MHz / 2 * 5.76 = 110.592 MHz  (= 2304 x 48 kHz)
+c6307aa0 PLL off   : R5 = 0; clock res 0x2a off
+c6307ac2 interface : P0 R27 = 0x40 (DSP mode, 16 bit, BCLK and WCLK are INPUTS -> RAPU is master),
+                     P0 R54 = 0x02 (DIN = primary data input)
+c6307ae2           : P0 R54 = 0 (DIN off)
+c6307ba2 DAC normal: P0 R14 DOSR = 128; P0 R60 = 0x0c (PRB_P12: interp. B, LEFT only, 1st-order IIR,
+                     no biquads); page 46 block write at reg 28: 7f ff ff 00 00.. (C65 = 1.0, C66 = C67 = 0:
+                     the 1st-order IIR set to pass-through); P0 R11 NDAC = 0x82 (2), R12 MDAC = 0x89 (9)
+                     -> DAC fs = 110.592M / 2 / 9 / 128 = 48 kHz; P0 R63 = 0x90 (left DAC on, left data);
+                     R65 left DAC vol = 0xfd (-1.5 dB); R64 = 0x04 (left unmuted, right muted)
+c6307c32 DAC "ANC" : P0 R14 DOSR = 64; R15/R16 IDAC = 0x0240 (576 miniDSP_D instructions); R17 = 0;
+                     R60 = 0x80 (miniDSP_D, bit 7 set); same page-46 block; NDAC 2, MDAC 9 -> 96 kHz;
+                     R63 = 0x90, R65 = 0x00 (0 dB), R64 = 0x04
+c6307c02 / c6307cf8 DAC off: R64 = 0x0c, R63 = 0x02, NDAC/MDAC = 2/9 with enable bits clear
+c6307afa ADC "ANC" : Gazoo dev1 reg 0x10 bit 4 = 1; P0 R18 NADC = 0 (off -> ADC_CLK = DAC_CLK),
+                     R19 MADC = 0x92 (18) -> ADC_MOD_CLK = 3.072 MHz (digital-mic clock), R20 AOSR = 32
+                     (-> 96 kHz), R21/R22 IADC = 0x0240 (576 miniDSP_A instructions), R23 = 0x02,
+                     R61 = 0 (miniDSP_A), R83/R84 ADC vol 0 dB, R52 = 0x28 (GPIO = digital-mic clock out),
+                     R82 = 0 (unmuted), R81 = 0xde (both ADCs on, dmic data on SCLK, both channels dmic)
+c6307b72 ADC off   : R82 = 0x88 (mute), R19 = 0, R52 = 0, R81 = 0x02
+c6307d28 HP on     : P1 R12 = 0x08 (LDAC+ -> HPL), R13 = 0x10 (LDAC- -> HPR: earpiece in bridge),
+                     R16/R17 = 0x05 (+5 dB, unmuted), R9 = 0x30 (HPL, HPR on)
+c6307d68 HP off    : P1 R9 = 0, R12 = 0, R13 = 0
+c6307dd8/c6307df8  : P0 R62 bit 1 set / clear (miniDSP_D aux bit B)
+c63081c2/c63081a6  : P0 R62 bit 6 set (+5 ms) / clear (miniDSP_A aux bit A)
+c63080fe           : reads P0 R47 (sticky flags?) and page 8 R8..R10, R12..R14 (two 24-bit miniDSP values)
+
+== use cases (dispatcher c6307588, ISI message ids 0x100040..)
+c6307eac/c6307f84 playback on : analog on, PLL, interface, DAC normal, HP on
+c6307ec8/c6307fa0 playback off: HP off, DAC off, DIN off, PLL off, analog off
+c6307eec/c6307fbc ANC on      : analog on, PLL, interface, ADC ANC, DAC ANC, HP on, R62 bit 6 clear
+c6307f10/c6307fe0 ANC off     : R62 bit 6 set, HP off, ADC off, DAC off, DIN off, PLL off, analog off
+c6307f34 / c6307f58 / c6307f6c: switch between the two DAC set-ups while running
+c630761a: single register write from the message (reg<<8 | val); c6307628: raw block write
+(ptr,len) from the message. The miniDSP_A/D programs (576 instructions each) are NOT in ISASW: they
+can only arrive through this generic block write, i.e. from the Symbian/ADSP audio side. Not found.
+
+State in dump1: c6826ee4.. = 00 00 00 00 18 00 .. (codec idle, no read cached).

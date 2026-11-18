@@ -1,0 +1,75 @@
+/* DRAFT, not built, not run. E72 audio-side parts on the hs-i2c port 3 (i2c3, 0x20032500), to be
+ * included after e72.dts. Everything starts "disabled" except the light sensor; see NOTES.md.
+ *
+ *  - codec N2101 TLV320AIC3254 @0x18: MCLK = RAPU SysClk384 (38.4 MHz), reset = GenOut104 (active
+ *    low, ISASW pulses low 2 ms), IOVDD/DVDD = VIO 1.8 V (LDO_SELECT low), LDOIN/HPVDD = N2100
+ *    BH30SA2WGUT 3.0 V from VBAT (STBY drawn tied to VIN), AVDD from the codec's own AVDD LDO.
+ *    Mainline tlv320aic32x4 needs the power_cfg patch (0001-...) or it writes LDOCTL = 0 and
+ *    leaves AVDD unpowered. Which RAPU clock gate drives SysClk384 is NOT determined (ISASW asks
+ *    its own resource 0x2a) -> modelled as an always-on fixed clock; check with "e72-audio-probe.sh
+ *    clock" first.
+ *  - headphone amp N2000 @0x60: ISASW enable = GenIO37 (AVPaEn). ISASW's detection put this unit
+ *    into its NON-TPA6130A2 branch (see NOTES.md, question 3) -> left disabled.
+ *  - ambient light sensor N1100 TSL2563CL @0x29 (ADR_SEL = GND), Vdd = VAUX2 (gazoo, not modelled),
+ *    INT not routed to a known GPIO -> polled IIO device (in_illuminance0_input).
+ */
+/ {
+	vio_1v8: regulator-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "VIO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	vanc_3v0: regulator-n2100 {
+		compatible = "regulator-fixed";
+		regulator-name = "N2100-3V0";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-always-on;
+	};
+
+	sysclk384: clock-sysclk384 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <38400000>;
+		clock-output-names = "sysclk384";
+	};
+};
+
+&i2c3 {
+	als: light-sensor@29 {
+		compatible = "amstaos,tsl2563";
+		reg = <0x29>;
+	};
+
+	tlv320aic3254: audio-codec@18 {
+		compatible = "ti,tlv320aic32x4";
+		reg = <0x18>;
+		#sound-dai-cells = <0>;
+		clocks = <&sysclk384>;
+		clock-names = "mclk";
+		reset-gpios = <&gpio 104 0>;	/* legacy gpio api in the driver: number only */
+		iov-supply = <&vio_1v8>;
+		ldoin-supply = <&vanc_3v0>;
+		dv-supply = <&vio_1v8>;
+		/* needs 0001-ASoC-tlv320aic32x4-power-cfg-from-DT.patch */
+		ti,avdd-ldo-enable;
+		ti,avdd-dvdd-weak-disable;
+		ti,ldoin-range-18-36;
+		ti,hp-powered-by-ldoin;
+		status = "disabled";
+	};
+
+	headphone-amp@60 {
+		compatible = "ti,tpa6130a2";
+		reg = <0x60>;
+		power-gpio = <&gpio 37 0>;
+		Vdd-supply = <&vanc_3v0>;	/* real supply not traced */
+		status = "disabled";
+	};
+};
+
+/* No sound card node: there is no CPU DAI yet (NOTES.md question 4). A card for the codec-only
+ * tests is not needed; e72-audio-probe.sh drives the registers over i2c-dev. */

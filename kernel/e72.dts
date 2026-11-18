@@ -102,5 +102,14 @@
 			ti,termination-current = <150>;
 			ti,resistor-sense = <68>;
 		};
+
+		/* ambient light sensor N1100 TSL2563 (isasw sensor_srv.c talks
+		 * to 0x29 with the tsl256x commands). polled iio device,
+		 * in_illuminance0_input. its supply VAUX2 is left as symbian
+		 * set it. not yet run on the device */
+		light-sensor@29 {
+			compatible = "amstaos,tsl2563";
+			reg = <0x29>;
+		};
 	};
 };

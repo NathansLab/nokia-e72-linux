@@ -1,0 +1,27 @@
+DRAFT (not applied, not compiled). Linux 6.12 tlv320aic32x4: with a DT node the driver leaves
+power_cfg = 0, so component probe writes P1 R2 (LDOCTL) = 0 -> AVDD LDO off. On the E72 AVDD only has
+a decoupling cap (C2124) and comes from that LDO (ISASW writes P1 R2 = 0x21, P1 R1 = 0x08,
+P1 R10 = 0x63). These boolean properties map onto the existing AIC32X4_PWR_* flags.
+Note ISASW also sets P1 R10 bit 6 (0.75 V chip common mode) and HP CM 1.5 V; mainline keeps the
+0.9 V default, which is fine with LDOIN = 3.0 V.
+
+--- a/sound/soc/codecs/tlv320aic32x4.c
++++ b/sound/soc/codecs/tlv320aic32x4.c
+@@ static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
+ 	aic32x4->swapdacs = false;
+ 	aic32x4->micpga_routing = 0;
+ 	aic32x4->rstn_gpio = of_get_named_gpio(np, "reset-gpios", 0);
+
++	aic32x4->power_cfg = 0;
++	if (of_property_read_bool(np, "ti,avdd-ldo-enable"))
++		aic32x4->power_cfg |= AIC32X4_PWR_AIC32X4_LDO_ENABLE;
++	if (of_property_read_bool(np, "ti,avdd-dvdd-weak-disable"))
++		aic32x4->power_cfg |= AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE;
++	if (of_property_read_bool(np, "ti,ldoin-range-18-36"))
++		aic32x4->power_cfg |= AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36;
++	if (of_property_read_bool(np, "ti,hp-powered-by-ldoin"))
++		aic32x4->power_cfg |= AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED;
++
+ 	if (of_property_read_u32_array(np, "aic32x4-gpio-func",
+ 				aic32x4_setup->gpio_func, 5) >= 0)
+ 		aic32x4->setup = aic32x4_setup;
