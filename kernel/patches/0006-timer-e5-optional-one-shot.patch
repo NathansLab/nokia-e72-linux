@@ -4,15 +4,7 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
 ---
 --- a/drivers/clocksource/timer-rapuyama-e5.c
 +++ b/drivers/clocksource/timer-rapuyama-e5.c
-@@ -25,6 +25,7 @@
- #include <linux/io.h>
- #include <linux/irq.h>
- #include <linux/kernel.h>
-+#include <linux/moduleparam.h>
- #include <linux/of.h>
- #include <linux/of_address.h>
- #include <linux/of_irq.h>
-@@ -44,6 +45,17 @@
+@@ -44,6 +44,21 @@
  #define TICK_BASE_HZ	1000
  #define WDT_KICK_TICKS	100
  
@@ -21,7 +13,11 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
 + * and free running. It does not reload by itself, it wraps through zero to
 + * 0xffffffff and raises the irq there. A write to +0x24 sets the count, a
 + * write to +0x44 adds to it (which is how the 1 ms isr re-arms drift free).
-+ * So an event is programmed by writing the delta to +0x24.
++ * So an event is programmed by writing the delta to +0x24. The write takes
++ * effect at once, also when WFI follows directly (probed: 50 ms events wake
++ * the cpu on time).
++ * Open: with one-shot mode AND WFI idle the wl1251 stalls (it gets no more
++ * interrupts until WFI is switched off again), so this stays opt-in.
 + */
 +#define TICK_RATE	7680000
 +#define TICK_MIN_DELTA	768		/* 100 us */
@@ -30,14 +26,12 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
  #ifdef CONFIG_ARCH_RAPUYAMA
  void rapuyama_early_wdt_kick(void);
  #else
-@@ -54,7 +66,19 @@
+@@ -54,7 +69,17 @@
  static void __iomem *fc_base;
  static u32 tick_accumulator;
  static u32 tick_wdt_ticks;
 +static bool tick_oneshot;
 +static bool tick_programmed;
-+static u32 tick_sync_max;
-+module_param_named(sync_max, tick_sync_max, uint, 0644);
 +static u32 tick_wdt_fc;
 +static u32 tick_wdt_fc_step = FC_DEF_RATE / 10;
  
@@ -50,7 +44,7 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
  static u64 notrace rapuyama_e5_fc_read(void)
  {
  	writel_relaxed(FC_LATCH_VAL, fc_base + FC_LATCH);
-@@ -84,6 +108,43 @@
+@@ -84,6 +109,29 @@
  	writel_relaxed(TICK_RELOAD, tick_base + TICK_ACK);
  }
  
@@ -61,20 +55,6 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
 +	while (readl_relaxed(tick_base + TICK_ACK) && --n)
 +		cpu_relax();
 +	writel_relaxed(count, tick_base + TICK_COUNT);
-+	/*
-+	 * the write crosses into the counter's clock domain. The idle code may
-+	 * enter WFI right after this, and a write that has not landed by then
-+	 * is lost (seen on the E72: no more timer wakeups). Wait until the
-+	 * counter shows the new value.
-+	 */
-+	for (n = 0; n < TICK_SYNC_LOOPS; n++) {
-+		u32 v = readl_relaxed(tick_base + TICK_COUNT);
-+
-+		if (v <= count && count - v < TICK_RATE / 100)
-+			break;
-+	}
-+	if (n > tick_sync_max)
-+		tick_sync_max = n;
 +}
 +
 +static int rapuyama_e5_set_next_event(unsigned long delta,
@@ -94,7 +74,7 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
  static int rapuyama_e5_set_periodic(struct clock_event_device *evt)
  {
  	tick_accumulator = 0;
-@@ -112,6 +173,22 @@
+@@ -112,6 +160,22 @@
  {
  	struct clock_event_device *evt = dev_id;
  
@@ -117,7 +97,7 @@ Subject: [PATCH] timer-rapuyama-e5: optional one-shot mode (e6.oneshot=1), exper
  	rapuyama_e5_tick_rearm();
  
  	/* feed the soc watchdog until the wdt driver is up */
-@@ -186,7 +263,17 @@
+@@ -186,7 +250,17 @@
  
  	rapuyama_e5_ced.irq = irq;
  	rapuyama_e5_ced.cpumask = cpu_possible_mask;

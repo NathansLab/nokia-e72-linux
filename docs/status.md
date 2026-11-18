@@ -27,15 +27,15 @@ Three levels: **verified on device** (seen working on the E72), **built, unteste
 - kexec (kernel option and `kexec` binary).
 - Alpine userland: `dbclient`/`ssh`, `scp`, `apk`.
 - TUN and WireGuard, 100 Hz tick.
+- Console keymap with one-shot Shift/Ctrl/Fn/Sym layers (`initramfs/e72.kmap`), checked by injecting key events over SSH; display dims after 15 s and switches off after 45 s without a key (`e72-lights`); `bat` shows the battery state.
 
 ## Not working / not done
 
 - **USB ethernet:** `usb0` sends, but receives only the first packet. Files go over the serial line for now (`tools/put.py`).
-- **Timer:** the hardware tick wakes the CPU 1000 times per second. Patch 0006 adds a one-shot mode (`e6.oneshot=1`); with WFI enabled, waits then stall, so it is off by default.
-- **Modem, calls, SMS, mobile data, audio:** not started.
-- **Keyboard layout:** Fn/Sym layers and the special keys still need a real layout.
+- **Timer:** the hardware tick wakes the CPU 1000 times per second. Patch 0006 adds a one-shot mode (`e6.oneshot=1`); with WFI enabled the WLAN chip then gets almost no interrupts, so it is off by default. The counters themselves keep running in WFI and wake the CPU on time (measured).
+- **Modem, calls, SMS, mobile data:** not started.
+- **Vibra, microphones:** a vibra driver (patch 0008) and a silent microphone probe module are built but have not run on the device; speaker, earpiece and headset are not started. See [audio-vibra.md](audio-vibra.md).
 - **Power saving:** `nohlt` at boot, keyboard polled; WFI and interrupt-driven input are the next steps.
-- **Reboot without USB host:** `e72-init.sh` reboots after 150 s if no PC configured the gadget (a bring-up aid; remove it for cable-free use).
 - **Other firmware versions / E72 variants:** only RM-530 with 091.004 has a watchdog entry.
 
 ## Next steps

@@ -73,6 +73,13 @@
  * 4.1 V here stays below the firmware's own limit. the driver only charges
  * from an enumerated 500 mA usb host and at 5..40 C */
 &{/soc} {
+	/* vibra motor M2000 on gazoo VibraP/VibraN (rapuyama-e72-vibra.c):
+	 * force feedback input device and .../soc:vibra/pulse_ms. inferred
+	 * from the isasw production test, not yet run on the device */
+	vibra {
+		compatible = "nokia,rapuyama-e72-vibra";
+	};
+
 	i2c3: i2c@20032500 {
 		compatible = "nokia,rapuyama-hs-i2c";
 		reg = <0x20032500 0x80>, <0x20033000 0x100>,

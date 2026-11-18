@@ -24,7 +24,15 @@ The data area of Symbian's `ekeyb.dll` (ROM `0x8015db70`, data `V:0xc8009a20`) i
 
 `01` Backspace, `03` Enter, `05` Space, `0e/0f/10/11` left/right/up/down, `12` Shift, `17` Ctrl, `18/19` Fn, `a4/a5` soft keys, `a7` centre, `c4/c5` call/end.
 
-The Linux keycodes chosen for these positions are the `linux,keymap` entries in `kernel/e72.dts` (format `row << 24 | col << 16 | keycode`). Keys without an obvious Linux equivalent (Fn, Sym, soft keys, call keys) were mapped to substitutes such as Esc, Tab, Alt and F1-F8; a proper layout with Fn/Sym layers like the upstream E5 port is still to do.
+The Linux keycodes chosen for these positions are the `linux,keymap` entries in `kernel/e72.dts` (format `row << 24 | col << 16 | keycode`). 
+## Console layout
+
+`initramfs/e72-kmap.py` generates `initramfs/e72.kmap`, which the boot script loads with `loadkmap`. Checked remotely by writing key events to `/dev/input/event1` (`kpress <keycode>...`) and reading the screen from `/dev/vcs1`; not yet pressed key by key on the device.
+
+- Modifiers are one-shot (press the modifier, then the key): Shift, Ctrl, Fn, right soft key (second symbol layer), menu key (Alt).
+- Fn gives the printed digits on R T Y / F G H / V B N / M, `*` on U, `#` on J; Fn + arrows = Home/End/PgUp/PgDn; Fn + Backspace = Delete.
+- Left soft key = Esc, call key = Tab, end key = Delete, one-touch keys = F1-F8.
+- Symbols outside the digit block were chosen for shell use and do not follow the printed legend.
 
 ## Driver
 

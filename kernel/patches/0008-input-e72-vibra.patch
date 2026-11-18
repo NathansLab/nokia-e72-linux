@@ -1,0 +1,222 @@
+From: Nathan Scheufele
+Subject: [PATCH] input: Nokia E72 gazoo vibra driver (untested on device)
+
+---
+--- a/drivers/input/misc/Kconfig
++++ b/drivers/input/misc/Kconfig
+@@ -955,5 +955,13 @@
+ 
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called stpmic1_onkey.
++
++config INPUT_RAPUYAMA_E72_VIBRA
++	tristate "Nokia E72 gazoo vibra"
++	depends on RAPUYAMA_WATCHDOG
++	select INPUT_FF_MEMLESS
++	help
++	  Vibra motor of the Nokia E72 on the gazoo pmic (force feedback and
++	  a sysfs pulse attribute).
+ 
+ endif
+--- a/drivers/input/misc/Makefile
++++ b/drivers/input/misc/Makefile
+@@ -92,3 +92,4 @@
+ obj-$(CONFIG_INPUT_XEN_KBDDEV_FRONTEND)	+= xen-kbdfront.o
+ obj-$(CONFIG_INPUT_YEALINK)		+= yealink.o
+ obj-$(CONFIG_INPUT_IDEAPAD_SLIDEBAR)	+= ideapad_slidebar.o
++obj-$(CONFIG_INPUT_RAPUYAMA_E72_VIBRA)	+= rapuyama-e72-vibra.o
+--- /dev/null
++++ b/drivers/input/misc/rapuyama-e72-vibra.c
+@@ -0,0 +1,192 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Nokia E72 vibra motor (M2000) on the gazoo pmic outputs VibraP / VibraN.
++ *
++ * From the E72 isasw (test_rel_vibra.c): gazoo device 2 register 0x10,
++ * bit 0 and bits 2:1 = 1 enable the driver, bit 5 drives VibraP, bit 4
++ * VibraN. On = 0x23 in mask 0x37, off = 0 in the same mask. Bits 4 and 5 are
++ * never set together (both half bridges on), all other bits are kept: the
++ * accessory detection uses the same register. Symbian normally lets the dsp
++ * pwm the motor; this is the plain dc drive of the production test, so
++ * there is one strength only.
++ *
++ * Interfaces: force feedback (FF_RUMBLE, any non-zero magnitude = on) and
++ * the sysfs attribute pulse_ms (write a duration, 0 = stop). The motor is
++ * switched off after MAX_ON_MS at the latest, whatever user space does.
++ *
++ * NOT yet run on a device.
++ */
++#include <linux/input.h>
++#include <linux/jiffies.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/soc/rapuyama-pmic.h>
++#include <linux/workqueue.h>
++
++#define GAZOO_DEV	2
++#define VIB_REG		0x10
++#define VIB_MASK	0x0037
++#define VIB_ON		0x0023
++#define MAX_ON_MS	2000
++
++struct ry_vibra {
++	struct device *dev;
++	struct input_dev *input;
++	struct work_struct work;
++	struct delayed_work off_work;
++	bool want;
++};
++
++static int ry_vibra_set(struct ry_vibra *v, bool on)
++{
++	int ret = rapuyama_pmic_update(GAZOO_DEV, VIB_REG, VIB_MASK,
++				       on ? VIB_ON : 0, NULL);
++
++	if (ret)
++		dev_err_ratelimited(v->dev, "gazoo write failed: %d\n", ret);
++	return ret;
++}
++
++static void ry_vibra_run(struct ry_vibra *v, unsigned int ms)
++{
++	if (!ms) {
++		cancel_delayed_work_sync(&v->off_work);
++		ry_vibra_set(v, false);
++		return;
++	}
++	/* arm the switch-off first, so a failure in between leaves it armed */
++	mod_delayed_work(system_wq, &v->off_work,
++			 msecs_to_jiffies(min_t(unsigned int, ms, MAX_ON_MS)));
++	ry_vibra_set(v, true);
++}
++
++static void ry_vibra_off_work(struct work_struct *work)
++{
++	struct ry_vibra *v = container_of(work, struct ry_vibra, off_work.work);
++
++	ry_vibra_set(v, false);
++}
++
++static void ry_vibra_work(struct work_struct *work)
++{
++	struct ry_vibra *v = container_of(work, struct ry_vibra, work);
++
++	ry_vibra_run(v, READ_ONCE(v->want) ? MAX_ON_MS : 0);
++}
++
++static int ry_vibra_play(struct input_dev *input, void *data,
++			 struct ff_effect *effect)
++{
++	struct ry_vibra *v = input_get_drvdata(input);
++
++	WRITE_ONCE(v->want, effect->u.rumble.strong_magnitude ||
++			    effect->u.rumble.weak_magnitude);
++	schedule_work(&v->work);
++	return 0;
++}
++
++static void ry_vibra_close(struct input_dev *input)
++{
++	struct ry_vibra *v = input_get_drvdata(input);
++
++	cancel_work_sync(&v->work);
++	ry_vibra_run(v, 0);
++}
++
++static ssize_t pulse_ms_store(struct device *dev, struct device_attribute *attr,
++			      const char *buf, size_t n)
++{
++	struct ry_vibra *v = dev_get_drvdata(dev);
++	unsigned int ms;
++	int ret = kstrtouint(buf, 0, &ms);
++
++	if (ret)
++		return ret;
++	ry_vibra_run(v, ms);
++	return n;
++}
++static DEVICE_ATTR_WO(pulse_ms);
++
++static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
++			char *buf)
++{
++	u16 r;
++	int ret = rapuyama_pmic_update(GAZOO_DEV, VIB_REG, 0, 0, &r);
++
++	return ret ? ret : sysfs_emit(buf, "%04x\n", r);
++}
++static DEVICE_ATTR_RO(reg);
++
++static struct attribute *ry_vibra_attrs[] = {
++	&dev_attr_pulse_ms.attr,
++	&dev_attr_reg.attr,
++	NULL
++};
++ATTRIBUTE_GROUPS(ry_vibra);
++
++static int ry_vibra_probe(struct platform_device *pdev)
++{
++	struct ry_vibra *v;
++	u16 r;
++	int ret;
++
++	/* read only: also tells whether the pmic bus is up yet */
++	ret = rapuyama_pmic_update(GAZOO_DEV, VIB_REG, 0, 0, &r);
++	if (ret)
++		return ret;
++
++	v = devm_kzalloc(&pdev->dev, sizeof(*v), GFP_KERNEL);
++	if (!v)
++		return -ENOMEM;
++	v->dev = &pdev->dev;
++	INIT_WORK(&v->work, ry_vibra_work);
++	INIT_DELAYED_WORK(&v->off_work, ry_vibra_off_work);
++	platform_set_drvdata(pdev, v);
++
++	v->input = devm_input_allocate_device(&pdev->dev);
++	if (!v->input)
++		return -ENOMEM;
++	v->input->name = "rapuyama-e72-vibra";
++	v->input->id.bustype = BUS_HOST;
++	v->input->close = ry_vibra_close;
++	input_set_drvdata(v->input, v);
++	input_set_capability(v->input, EV_FF, FF_RUMBLE);
++	ret = input_ff_create_memless(v->input, NULL, ry_vibra_play);
++	if (ret)
++		return ret;
++	ret = input_register_device(v->input);
++	if (ret)
++		return ret;
++	dev_info(&pdev->dev, "gazoo 2.%02x = %04x\n", VIB_REG, r);
++	return 0;
++}
++
++static void ry_vibra_stop(struct platform_device *pdev)
++{
++	struct ry_vibra *v = platform_get_drvdata(pdev);
++
++	cancel_work_sync(&v->work);
++	ry_vibra_run(v, 0);
++}
++
++static const struct of_device_id ry_vibra_of_match[] = {
++	{ .compatible = "nokia,rapuyama-e72-vibra" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, ry_vibra_of_match);
++
++static struct platform_driver ry_vibra_driver = {
++	.probe = ry_vibra_probe,
++	.remove = ry_vibra_stop,
++	.shutdown = ry_vibra_stop,
++	.driver = {
++		.name = "rapuyama-e72-vibra",
++		.of_match_table = ry_vibra_of_match,
++		.dev_groups = ry_vibra_groups,
++	},
++};
++module_platform_driver(ry_vibra_driver);
++
++MODULE_DESCRIPTION("Nokia E72 gazoo vibra");
++MODULE_LICENSE("GPL");

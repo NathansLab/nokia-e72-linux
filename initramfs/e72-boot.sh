@@ -4,7 +4,8 @@
 #   E:\linux\dropbear\                 ssh host keys, made on first boot
 #   E:\linux\authorized_keys           public keys allowed to log in as root
 #   E:\linux\boot.sh                   optional, run at the end
-# then: wlan up, ssh server (keys only), wfi idle instead of the nohlt poll
+# then: wlan up, ssh server (keys only), wfi idle instead of the nohlt poll,
+# keymap, light timeout, low battery guard
 BB=/bin/busybox
 (
 	export PATH=/bin:/sbin:/usr/bin:/usr/sbin
@@ -31,17 +32,21 @@ BB=/bin/busybox
 		/usr/sbin/dropbear -R -s -p 22 2>&1 | while IFS= read -r l; do k "ssh: $l"; done
 		k "ssh server on port 22 (keys only)"
 	fi
-	# energy: wlan power save (about 60 mA less), keyboard light off, panel dimmed
+	# energy: wlan power save (about 60 mA less); the lights follow the keys
 	command -v iw >/dev/null && iw dev wlan0 set power_save on 2>/dev/null
-	[ -w /sys/class/backlight/gazoo-pwm0/brightness ] && echo 0 > /sys/class/backlight/gazoo-pwm0/brightness
-	[ -w /sys/class/backlight/panel/brightness ] && echo 40 > /sys/class/backlight/panel/brightness
-	# linux does not charge yet: back to symbian (which does) after 3 polls below 3500 mV
+	[ -r /etc/e72.kmap ] && $BB loadkmap < /etc/e72.kmap && k "keymap /etc/e72.kmap loaded"
+	[ -e /dev/input/event1 ] && /bin/e72-lights </dev/null >/dev/null 2>&1 &
+	# the bq24151 only charges from an enumerated usb host. on a wall charger
+	# (usb power present, no charging) go back to symbian below 3500 mV, it
+	# can charge there. on battery alone the kernel powers off at 3300 mV
 	(
 		n=0
-		while [ -r /sys/class/power_supply/battery/voltage_now ]; do
-			mv=$(($($BB cat /sys/class/power_supply/battery/voltage_now) / 1000))
-			if [ "$mv" -lt 3500 ]; then n=$((n + 1)); else n=0; fi
-			[ "$n" -ge 3 ] && { k "battery $mv mV, rebooting to symbian to charge"; $BB sync; $BB reboot; }
+		P=/sys/class/power_supply
+		while [ -r $P/battery/voltage_now ]; do
+			mv=$(($($BB cat $P/battery/voltage_now) / 1000))
+			if [ "$mv" -lt 3500 ] && [ "$($BB cat $P/usb/online 2>/dev/null)" = 1 ] &&
+			   [ "$($BB cat $P/battery/status)" != Charging ]; then n=$((n + 1)); else n=0; fi
+			[ "$n" -ge 3 ] && { k "battery $mv mV on a charger linux cannot use, rebooting to symbian"; $BB sync; $BB reboot; }
 			$BB sleep 60
 		done
 	) &

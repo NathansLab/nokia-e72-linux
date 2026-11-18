@@ -52,7 +52,7 @@ config() {
 	S -e RD_XZ; S -d INITRAMFS_COMPRESSION_GZIP; S -e INITRAMFS_COMPRESSION_XZ
 	S -d BTRFS_FS; S -d KALLSYMS_ALL
 	# E72: tun + wireguard for a tailnet, 100 Hz tick (fewer wakeups than 1000)
-	S -e I2C; S -e I2C_RAPUYAMA_HS; S -e CHARGER_BQ2415X; S -e TUN; S -e WIREGUARD; S -d HZ_1000; S -e HZ_100
+	S -e INPUT_MISC; S -e INPUT_RAPUYAMA_E72_VIBRA; S -e I2C; S -e I2C_RAPUYAMA_HS; S -e CHARGER_BQ2415X; S -e TUN; S -e WIREGUARD; S -d HZ_1000; S -e HZ_100
 	S -e KEXEC; S -d STRICT_DEVMEM; S -e IKCONFIG; S -e IKCONFIG_PROC
 	# E72: 128 MB, top of ram at 0x18000000
 	S --set-val RAPUYAMA_RAM_TOP 0x18000000
@@ -93,6 +93,11 @@ file /usr/share/udhcpc/default.script $I/e5-dhcp.sh 755 0 0
 slink /usr/bin/ssh dbclient 777 0 0
 file /etc/passwd $I/e72-passwd 644 0 0
 file /bin/e72-boot $I/e72-boot.sh 755 0 0
+file /bin/e72-lights $I/e72-lights.sh 755 0 0
+file /bin/bat $I/e72-bat.sh 755 0 0
+file /bin/kpress $I/e72-kpress.sh 755 0 0
+file /bin/vib $I/e72-vib.sh 755 0 0
+file /etc/e72.kmap $I/e72.kmap 644 0 0
 file /etc/shells $I/e72-shells 644 0 0
 LIST
 	S --set-str INITRAMFS_SOURCE "$KOUT/initramfs.list"
