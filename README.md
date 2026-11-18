@@ -55,6 +55,7 @@ Background:
 - [Keyboard](docs/keyboard.md)
 - [Audio and vibra](docs/audio-vibra.md)
 - [Idle, wake-up and kexec](docs/idle-and-kexec.md)
+- [Mobile data (preparation)](docs/mobile-data.md)
 - [WLAN and card slot](docs/wlan.md)
 - [Hardware notes](docs/hardware.md)
 

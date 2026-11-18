@@ -31,10 +31,6 @@ Status 2026-11-18. Findings from static analysis of Symbian's `power.dll`, GPIO 
 - That this is the cause is not proven (it assumes a token one step old is still accepted). `0009-secure-wdt-token-write-back.patch` writes the token back.
 - Ruled out: page reservations. All pages the bridge needs lie below Linux RAM.
 
-## Mobile data (preparation)
-
-`kernel/build-e72-cell.sh`, `kernel/e72-cell.dts` and `0012-mdi-e72-layout.patch` build a kernel for the upstream userspace modem runtime (VMSPLIT_3G25, Phonet, MDI ring driver, SIM bridge). The runtime itself is not ported yet and nothing of this has run.
-
 ## Keyboard by interrupt
 
 `0013-keypad-row-interrupts-gpio-enable-reg.patch`: with `rapuyama_e5_keypad.irq=1` and `e72-level.dtb` the driver waits for a level interrupt on the eight row pins while no key is down and scans every 20 ms only while a key is held. Without the parameter it polls as before. Not yet run.

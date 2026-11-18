@@ -1,0 +1,101 @@
+name	E5	E72	conf	evidence	E72 check
+ISASW code base (pa 0x10480000)	c6300000	c6300000	C	page tables dump1: va c6300000 -> pa 10480000 contiguous	callers 0, a3959780
+ISASW code size	003ae000	003bb000	C	contiguous mapping ends c66bb000	
+ISASW data base (pa E5 1fd50000 / E72 17d50000)	c6800000	c6800000	C	page tables: -> pa 17d50000, 0x280000	
+secure pool (pa E5 1ffe0000 / E72 17fe0000)	c6b00000	c6b00000	C	page tables: -> pa 17fe0000, 0x10000	
+SIM patch window (pa E5 100ec000 / E72 100db000)	c60f0000	c60f0000	C	page tables: -> pa 100db000, 0x2000	
+DSP shared buffers cb500000 (pa 10140000)	cb500000	cb500000	C	page tables: -> pa 10140000, 0x80000 (same)	
+DSP pool 2 cb580000 (pa E5 1fc90000 / E72 17c90000)	cb580000	cb580000	C	page tables: -> pa 17c90000, 0x50000	
+SBIF RAM drives cb600000 (pa E5 11200000 / E72 11300000)	cb600000	cb600000	C	page tables: -> pa 11300000, 0xfc000	
+MDI rings AP/DSP (pa 30003ce0/30003df0)	c601bce0	c601bce0	C	MDI state c683aa08 +0x33c/+0x340 = c601bce0/c601bdf0; c6018000 -> pa 30000000	
+MDI state	c683a440	c683aa08	C	ring pointers at +0x33c/+0x340	
+allocate	c63c646d	c63cbd41	C	spacing to release identical (0x552)	callers 121, f0b50546
+release	c63c69bf	c63cc293	C	3031 callers (E5 3032)	callers 3031, f1b586b0
+send_packet (frame from host)	c635b4e3	c636056f	C	checks 15/6c/d7, d9 pipe fast path, sends to task 0x21	callers 0, 10b50178
+to-host (queue on task 0x2f)	c635b4bd	c6360549	C	send_to_task(0x2f), +0x26 before send_packet as on E5	callers 0, 10b50400
+receive	c63bef51	c63c4829	C	first call of the task 33 loop	callers 91, ea48feb5
+schedule	c63bca37	c63c230f	I	push{r1-r7,lr}, sched literal, delta = send_to_task region	callers 27, feb5fcf7
+current task	c63bdbc9	c63c34a1	C	reads sched c6836204 +2, directly before send_to_task	callers 290, 80480178
+send to task	c63bdbe4	c63c34bc	C	E5 entry bytes f0b5 85b0 0446 0d46 exact	callers 141, f0b585b0
+MDI rx irq 0x13	c63c8f6d	c63ce841	C	irq_register(0x13, ..) literal	callers 0, 70b51320
+MDI tx-consumed irq 0x15	c63c9031	c63ce905	C	irq_register(0x15, ..) literal	callers 0, 152008b5
+MDI event irq 0x17	c63c8e0d	c63ce6e1	C	irq_register(0x17, ..) literal	callers 0, 172008b5
+MDI ring dump (trap)	c63c9d30	c63cf604	C	calls INTC helper 1, 4-aligned	callers 3, f1b588b0
+assert handler (trap)	c63d8864	c63de19c	I	(expr,file,line) handler, 2053 callers, 4-aligned	callers 2053, 70b50d46
+reset(reason) (trap)	c63d7be4	c63dd4ec	C	strb reason, trace id 0xef, cmp #3 (same code), 4-aligned	callers 34, 10b54349
+STACK_GUARDS	c6672564	c667f050	C	48 words -> 0xaaaaaaaa, used by task switch	callers 0, 10658dc6
+task config table (48 x 16)	c6672a20	c667f50c	C	task 26/28/34 second words 20052069/00193287 as on E5	callers 0, 971f4cc6
+task 26 entry (watchdog 172)	c63ca065	c63cf939	C	task table	callers 0, 12480121
+task 28 entry (energy)	c6329389	c632aac1	C	task table	callers 0, 70b50121
+task 34 entry (DSP watchdog 219)	c63c8b75	c63ce429	C	task table	callers 0, f8b50025
+scheduler struct	c6835c3c	c6836204	C	+0x20 -> task table, +2 = 0x2f (idle)	
+host queue (task 0x2f)	c6836838	c6836e00	I	queue array c6836820 + 0x2f*0x20	
+crit exit -> bx lr	c63d83cc	c63ddcf4	C	irq cluster delta, 147 callers	callers 147, 3b490120
+crit enter -> bx lr	c63d83da	c63ddd02	C	144 callers	callers 144, 38490120
+irq_register	c63d83e8	c63ddd10	C	49 callers (E5 49)	callers 49, 70b50446
+irq_enable	c63d8442	c63ddd6a	C	47 callers (E5 47)	callers 47, 10b50446
+irq_disable	c63d8460	c63ddd88	C	52 callers (E5 52)	callers 52, 10b50446
+INTC NOP site 1 (bl helper1)	c63b9bba	c63bf436	C	only non-ring-dump caller of helper c63ddd48	callers 0, 1ef087fc
+INTC NOP site 2 (bl helper2)	c63b9cfa	c63bf576	C	only caller of helper c63ddd56	callers 0, 1ef0eefb
+c6033340 helper -> bx lr	c63b9d16	c63bf592	C	site2+0x1c as on E5; writes c6033340+0x14	callers 14, 3f480023
+get CPSR (ARM) -> mov r0,#0x13	c6658ce4	c66603c4	C	mrs r0,cpsr; bx lr	callers 0, 00000fe1
+cache barrier (ARM) -> bx lr	c6658da4	c6660484	C	mov r0,#0; DMB; DSB; bx lr	callers 10, 0000a0e3
+DSP invalidate veneer (4th of 4)	c6658dcc	c66604ac	C	thumb veneer -> host slot 0x68 wrapper c63f11b9	callers 9, 091a0131
+host IRQ bind (slot 0)	c63ebf44	c63f0f04	C	f8b5 0446 0d46, literal byte dc (E5 d4)	callers 1, f8b50446
+host v2p (slot 3)	c63ebfba	c63f0f7a	I	70b5 0546 xx4c 2068, 184 callers	callers 184, 70b50546
+host svc slots 0x58..0x68 (5 x bx lr)	c63ec10c	c63f10cc	C	slot 0x58 at +0x1c8 as on E5; then c63f10fe c63f113c c63f117a c63f11b8	callers 1, 10b56b4c
+host svc movs r0,#0	c63ec494	c63f141c	I	last host wrapper (slot 0x74 on E72), 6 callers	callers 6, ffb581b0
+ADC read	c63ec534	c63f14bc	C	cmp #0x1c, map literal	callers 22, 70b51c28
+ADC map literal	c63ec5e0	c63f1568	C	-> c66840ec, map byte-identical	callers 0, ec4068c6
+PMIC write	c63ec64a	c63f15d2	C	cmp #8, same order	callers 2, ffb50828
+PMIC read	c63ec6b0	c63f1638	C	cmp #8	callers 7, f8b50828
+PMIC IRQ handler table	c683d280	c683d7c8	C	ids 13/14/15 = c60f08f3/0aed/094b (identical values)	
+OS timer table (237 x 28)	c6832e8c	c6833454	C	237 ids, owners: 172=task26, 219=task34, 29..=task2	
+copied timer pool header	c683496c	c6834f34	C	{3,1,0,3}, callbacks = OS cb / housekeeping	
+OS timer callback	c63ba1eb	c63bfa6f	C	in the pool with arg 0xac	callers 0, 2f49f8b5
+housekeeping 5.2 s	c63ba575	c63bfdf9	C	in the pool	callers 0, 10b5fff7
+elapsed (patched)	c63ba434	c63bfcb8	I	region delta +0x5884, uses c6033340	callers 4, bb4870b5
+os start	c63ba68f	c63bff13	I	299 callers	callers 299, f3b583b0
+os stop	c63ba94f	c63c01d3	I	392 callers	callers 392, feb50446
+rebase (patched)	c63bb852	c63c10c2	I	c6033340+0x14/+0x10 pattern before create	callers 2, 0e480021
+timer create	c63bb89c	c63c1120	C	checks count < 240, 12 callers (E5 12)	callers 12, f7b50446
+timer cancel	c63bb954	c63c11d8	C	10 callers (E5 10)	callers 10, f8b50446
+timer remaining	c63bba60	c63c12e4	C	2 callers (E5 2)	callers 2, 70b584b2
+next_remaining	c63bbb9e	c63c1422	I	1 caller	callers 1, 2e490420
+sim timer create	c63d6ec0	c63dc7c0	I	same spacing, 42 callers	callers 42, f7b51446
+sim timer cancel	c63d6fba	c63dc8ba	I		callers 16, f8b50446
+sim timer remaining	c63d7084	c63dc984	I		callers 1, 70b5c5b2
+delay (patched)	c63d7ace	c63dd412	I	c6033340 literal at +4, 70 callers	callers 70, f0b50025
+sema take / give	c63d8514	c63dde3c	I	7/7 callers; give c63dde54	callers 7, 0b498000
+SIM owner complete	c638bfa0	c63917fc	I		callers 7, 70b50546
+SIM transaction complete	c638c270	c6391ad0	I	11 callers	callers 11, f7b50500
+SIM start	c638cd1f	c639257f	I	SIM region delta +0x5860	callers 0, 70b50446
+SIM wake	c638cf17	c6392777	I		callers 1, 10b5816f
+SIM wake MMIO site (str r0,[r1,#4])	c638cf36	c6392796	C	6048 at +0x5860	callers 0, 486010bd
+SIM cold reset	c638d06b	c63928cb	I		callers 0, f8b50646
+SIM ctx init (irq_register 0xb1..0xb6)	c638cfc0	c6392820	C	6 irq_register calls 0xb1..0xb6	callers 1, 10b50446
+SIM initial handler pool	c638d240	c6392aa0	C	same 6 SIM patch pointers c60f07db..	callers 0, db070fc6
+SIM ctx pointer literal	c638d46c	c6392ccc	I	-> c6832848	callers 0, 482883c6
+SIM IRQ callbacks b3/b4/b6/b5	c60f07db	c60f07db	C	identical pointers in the pool	
+identity reader	c636a06e	c636f79e	C	E5 12-byte check exact	callers 1, 70b50646
+secure call entry	c636b908	c6371128	C	E5 8-byte check exact	callers 0, 0fb410b5
+secure item size (module 0x12)	c636a9e6	00000000	N	one of ~26 stubs c636eec6..c6370cdc	
+secure table ptr (pat_ptr)	c6831104	c68316cc	C	secure_wdt.c E72 entry	
+secure pool bounds	c6b0002c	c6b0002c	C	literals c6b0002c/c6b08000 present	
+reset 0xa site in sub-block parser	c6354a02	c6359a7a	C	movs r0,#0xa; bl reset	callers 0, 0a2083f0
+fw trace sink	c63552d4	c635a34c	I	E5 8 bytes exact, 83 callers, delta as reset-0xa site	callers 83, f8b50546
+fw trace flags	c685978c	00000000	N	debug only	
+SBIF api	c6346c37	c634bce7	I	literal SBIF control nearby	callers 1, 10b50124
+SBIF control	c682baa4	c682c034	I	referenced from c634bd64	
+SBIF RAM drive table	c6823f3c	c6823f68	C	{cb600000,200,7e000,0,cb67e000,200,7e000,1}	
+KASUMI f8 wrapper	c66553d5	c665cab9	C	cluster +0x76e4	callers 6, ffb5ebb0
+KASUMI selector d30a	c6655426	c665cb0a	C	d30a	callers 0, 0ad3759a
+KASUMI f9	c66554c7	c665cbab	C		callers 1, ffb583b0
+KASUMI f9 blo	c6655508	c665cbec	C	d30b	callers 0, 0bd30d9a
+KASUMI bl9 / bl8 sites	c665551c	c665cc00	C	bytes 00f0 f9fc / 00f0 0efd exact (bl8 c665cb1c)	callers 0, 00f0f9fc
+KASUMI hw blocks (veneer space)	c6655440	c665cb24	I	+0x76e4; c6655524 -> c665cc08	callers 0, 68f52afb
+KASUMI f8 batch	c6655aac	c665d190	C	E5 12-byte check exact	callers 1, ffb584b0
+KASUMI cipher / keysched	c6655c9b	c665d37f	C	9 / 6 callers; keysched c665d3f3	callers 9, f0b50446
+KASUMI sw f8 / f9 targets	c6655e59	c665d53d	C	bl8/bl9 targets; f9 c665d5f7	callers 1, f0b589b0
+fw soak diagnostics (devlock c636b107, print c6563b85, inval c6564083)	c636b107	00000000	N	debug only	
+PA_SWD stack in ISASW data (offset)	000d2000	000e4000	I	E72 parked sp c68e9e6c (secure_wdt sp_off 0x36438)	

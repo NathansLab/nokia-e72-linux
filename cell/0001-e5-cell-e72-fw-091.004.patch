@@ -1,0 +1,800 @@
+From: Nathan Scheufele
+Subject: [PATCH] e5-cell: build the modem runtime for the E72 (fw 091.004) from the same sources, untested on device
+
+---
+--- a/linux/e5-cell/build.sh
++++ b/linux/e5-cell/build.sh
+@@ -23,6 +23,9 @@
+ S="$HERE/sim"
+ "${CC[@]}" -I "$S" -o "$OUT/e5rt" "$S/e5rt-sim.c" "$S/sim_runtime.c" "$S/os_timer_runtime.c" \
+ 	"$S/identity_runtime.c" "$S/kasumi_runtime.c"
++# E72 (RM-530) fw 091.004: same sources behind sim/fwsel.h, plus the measurement tap (off by default)
++"${CC[@]}" -I "$S" -DE72_FW091004 -pthread -o "$OUT/e72rt" "$S/e5rt-sim.c" "$S/sim_runtime.c" \
++	"$S/os_timer_runtime.c" "$S/identity_runtime.c" "$S/kasumi_runtime.c" "$S/meas_tap.c"
+ if [ -n "${2:-}" ]; then
+ 	KB="$(cd "$2" && pwd)"
+ 	cp "$HERE/e5mem/e5mem.c" "$HERE/e5mem/Kbuild" "$OUT/"
+--- a/linux/e5-cell/sim/e5rt-sim.c
++++ b/linux/e5-cell/sim/e5rt-sim.c
+@@ -38,6 +38,7 @@
+ #include "os_timer_runtime.h"
+ #include "identity_runtime.h"
+ #include "kasumi_runtime.h"
++#include "meas_tap.h"
+ #include "thumb_redirect.h"
+ #include <ctype.h>
+ #include <sys/mman.h>
+@@ -45,32 +46,47 @@
+ #include <unistd.h>
+ 
+ #define CODE 0xc6300000u	/* phys 0x10480000 */
+-#define CODE_SIZE 0x3ae000u
++#define CODE_SIZE FW(0x3ae000u, E72_CODE_SIZE)
+ #define DATA 0xc6800000u	/* phys 0x1fd50000 */
+ #define DATA_SIZE 0x280000u
+ #define SECURE 0xc6b00000u	/* phys 0x1ffe0000 */
+ #define SECURE_SIZE 0x10000u
+ 
+ /* E5 firmware entry points (thumb, bit 0 set) */
+-#define FW_ALLOCATE 0xc63c646du
+-#define FW_SEND 0xc635b4e3u	/* frame from the host -> router task 0x21 */
++#define FW_ALLOCATE FW(0xc63c646du, E72_FW_ALLOCATE)
++#define FW_SEND FW(0xc635b4e3u, E72_FW_SEND)	/* frame from the host -> router task 0x21 */
+ static int quiet;	/* E5RT_QUIET=1: no per-frame MDI / host frame lines (each was dozens of unbuffered writes) */
+-#define FW_RECEIVE 0xc63bef51u
+-#define FW_RELEASE 0xc63c69bfu
+-#define FW_SCHEDULE 0xc63bca37u
+-#define FW_MDI_RX_IRQ 0xc63c8f6du	/* IRQ 0x13 handler */
+-#define FW_MDI_TX_IRQ 0xc63c9031u	/* IRQ 0x15: AP descriptors consumed */
+-#define FW_MDI_EVENT_IRQ 0xc63c8e0du	/* IRQ 0x17 */
+-#define SWD_STACK 0xd2000u		/* PA_SWD borrowed stack inside the ISASW data (sp c68d7e6c) */
++#define FW_RECEIVE FW(0xc63bef51u, E72_FW_RECEIVE)
++#define FW_RELEASE FW(0xc63c69bfu, E72_FW_RELEASE)
++#define FW_SCHEDULE FW(0xc63bca37u, E72_FW_SCHEDULE)
++#define FW_MDI_RX_IRQ FW(0xc63c8f6du, E72_FW_MDI_RX_IRQ)	/* IRQ 0x13 handler */
++#define FW_MDI_TX_IRQ FW(0xc63c9031u, E72_FW_MDI_TX_IRQ)	/* IRQ 0x15: AP descriptors consumed */
++#define FW_MDI_EVENT_IRQ FW(0xc63c8e0du, E72_FW_MDI_EVENT_IRQ)	/* IRQ 0x17 */
++#define SWD_STACK FW(0xd2000u, E72_SWD_STACK)		/* PA_SWD borrowed stack inside the ISASW data (sp c68d7e6c) */
+ #define MDI_AP 0xc601bce0u	/* AP->DSP ring header + 16 x 4-word slots (pa 0x30003ce0) */
+ #define MDI_DSP 0xc601bdf0u	/* DSP->AP ring (pa 0x30003df0) */
+ #define DSP_BUF 0xcb500000u	/* DSP shared buffers, pa 0x10140000 (dsp address = pa - 0x10000000) */
+-#define DATA_PA 0x1fd50000u
+-#define FW_ASSERT 0xc63d8864u	/* thumb handler (expr, file, line) */
+-#define FW_RESET 0xc63d7be4u	/* reset(reason) */
+-#define HOST_QUEUE 0xc6836838u	/* queue of task 0x2f (E6: 0xc681c11c, task 0x30) */
+-#define SCHED 0xc6835c3cu	/* +2 = current task, 0x2f when idle */
+-#define STACK_GUARDS 0xc6672564u	/* per task: address of its stack guard word, must hold 0xaaaaaaaa (task switch c6658af4) */
++#define DATA_PA FW(0x1fd50000u, E72_DATA_PA)
++#define FW_ASSERT FW(0xc63d8864u, E72_FW_ASSERT)	/* thumb handler (expr, file, line) */
++#define FW_RESET FW(0xc63d7be4u, E72_FW_RESET)	/* reset(reason) */
++#define HOST_QUEUE FW(0xc6836838u, E72_HOST_QUEUE)	/* queue of task 0x2f (E6: 0xc681c11c, task 0x30) */
++#define SCHED FW(0xc6835c3cu, E72_SCHED)	/* +2 = current task, 0x2f when idle */
++#define STACK_GUARDS FW(0xc6672564u, E72_STACK_GUARDS)	/* per task: address of its stack guard word, must hold 0xaaaaaaaa (task switch c6658af4) */
++#if FW_E72
++#include "e72_fw091004_check.h"
++/* E72: every mapped fw 091.004 code address must hold the bytes of the fw 091.004 dump before e5rt
++ * patches or calls anything; otherwise refuse to start (no firmware code has run yet) */
++__attribute__((noinline)) static int e72_fw_check(const struct fw_check *c, unsigned n)
++{
++	unsigned bad = 0;
++	for (unsigned i = 0; i < n; i++)
++		if (memcmp((const void *)(uintptr_t)c[i].address, c[i].bytes, sizeof(c[i].bytes)) && bad++ < 4)
++			fprintf(stderr, "unsupported firmware: %s at %08x differs from E72 fw 091.004\n", c[i].name, c[i].address);
++	if (bad)
++		fprintf(stderr, "unsupported firmware: %u of %u checks failed, not starting\n", bad, n);
++	return bad != 0;
++}
++#endif
+ static int stack_guard_broken(unsigned t)
+ {
+ 	uint32_t g = ((const uint32_t *)(uintptr_t)STACK_GUARDS)[t];
+@@ -150,7 +166,7 @@
+ 				for (unsigned i = 0; i < 96 && g + 4 * i + 4 <= DATA + DATA_SIZE; i++) {
+ 					uint32_t v = ((const uint32_t *)(uintptr_t)g)[i];
+ 					extern char __executable_start[], etext[];
+-					int fw = (v >= 0xc6300000 && v < 0xc66ae000) || (v >= 0xc60f0000 && v < 0xc60f1000);
++					int fw = (v >= 0xc6300000 && v < FW(0xc66ae000, E72_CODE_END)) || (v >= 0xc60f0000 && v < 0xc60f1000);
+ 					int ours = v >= (uintptr_t)__executable_start && v < (uintptr_t)etext;
+ 					if (fw || ours || i < 4)
+ 						fprintf(stderr, "  +%03x %08x%s\n", 4 * i, v, ours ? " (e5rt)" : "");
+@@ -191,7 +207,7 @@
+  * frame to GPDS (0x31). Per message: destination task, current task and the first 10 bytes (the
+  * Phonet-like header). The hook keeps to a few words of stack (firmware task stacks are small);
+  * printing happens in the serve loop. Trampoline = the 8 original bytes + jump back to the bl. */
+-#define FW_SEND_TASK 0xc63bdbe4u
++#define FW_SEND_TASK FW(0xc63bdbe4u, E72_FW_SEND_TASK)
+ static int msg_trace, msg_armed;
+ static int hs_trace;	/* E5RT_HS_TRACE, below */
+ static uint32_t hs_d8_ms;
+@@ -200,7 +216,7 @@
+ static unsigned msgs_l1;	/* L1 transport-block messages captured at 64 bytes (first 400) */
+ static unsigned msgs_head, msgs_tail, msgs_printed, msgs_dropped;
+ static uint32_t (*send_task_original)(uint32_t, uint32_t);
+-static uint32_t (*const current_task)(void) = (void *)(uintptr_t)0xc63bdbc9u;
++static uint32_t (*const current_task)(void) = (void *)(uintptr_t)FW(0xc63bdbc9u, E72_FW_CURRENT_TASK);
+ static uint64_t monotonic_ms(void);
+ static uint32_t send_task_hook(uint32_t task, uint32_t message)
+ {
+@@ -363,7 +379,7 @@
+  *   here they count and log their arguments (an area the firmware cleans is one the DSP will read).
+  * - tx descriptor type 06 payloads (first 64 bytes).
+  * - Snapshots (fork: copy-on-write view of e5rt's private copies + the real memory read at once):
+- *   private ISASW data / DSP window and the real ones (pa 0x1fd50000 via /dev/mem, pa 0x10140000 via
++ *   private ISASW data / DSP window and the real ones (pa FW(0x1fd50000, E72_DATA_PA) via /dev/mem, pa 0x10140000 via
+  *   the mdi mmap, read-only) at arming, 1 s and 3 s after the first CELL_DCH slot report (d8)
+  *   or 20 s after arming without one. Files in E5RT_HS_DIR (default /tmp/hs). */
+ static volatile sig_atomic_t hs_stop;	/* SIGTERM: leave the serve loop, print the summary */
+@@ -405,7 +421,7 @@
+ void hs_v0(void), hs_v1(void), hs_v2(void), hs_v3(void), hs_v4(void);
+ static void hs_install(void)
+ {
+-	static const uint32_t site[5] = {0xc63ec10c, 0xc63ec13e, 0xc63ec17c, 0xc63ec1ba, 0xc63ec1f8};
++	static const uint32_t site[5] = {FW(0xc63ec10c, E72_HOST_SVC_58), FW(0xc63ec13e, E72_HOST_SVC_5C), FW(0xc63ec17c, E72_HOST_SVC_60), FW(0xc63ec1ba, E72_HOST_SVC_64), FW(0xc63ec1f8, E72_HOST_SVC_68)};
+ 	static void (*const hook[5])(void) = {hs_v0, hs_v1, hs_v2, hs_v3, hs_v4};
+ 	for (unsigned i = 0; i < 5; i++) {	/* patches() wrote bx lr over the push: check it + the next insn */
+ 		const unsigned char *s = (const unsigned char *)(uintptr_t)site[i];
+@@ -466,7 +482,7 @@
+ 		}
+ 	}
+ 	static char buf[65536];
+-	snprintf(buf, sizeof(buf), "/sys/kernel/debug/e5mem/%s", blob);
++	snprintf(buf, sizeof(buf), FW("/sys/kernel/debug/e5mem/%s", "/sys/kernel/debug/e72mem/%s"), blob);
+ 	int in = open(buf, O_RDONLY), out = in < 0 ? -1 : open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+ 	if (in >= 0 && off && lseek(in, off, SEEK_SET) != (off_t)off) {
+ 		close(in);
+@@ -492,7 +508,7 @@
+ 		alarm(0);
+ 		hs_file(tag, "priv-ap", (const void *)(uintptr_t)DATA, DATA_SIZE);
+ 		hs_file(tag, "priv-dsp", (const void *)(uintptr_t)DSP_BUF, 0x80000);
+-		hs_real(tag, "real-ap", "1fd50000", 0, DATA_SIZE, 0);	/* /dev/mem refuses it: e5mem */
++		hs_real(tag, "real-ap", FW("1fd50000", "17d50000"), 0, DATA_SIZE, 0);	/* /dev/mem refuses it: e5mem */
+ 		hs_real(tag, "real-dsp", "10000000", 0x140000, 0x80000, 0);	/* e5mem too: no new mapping of the DSP window (its kernel alias already existed in the good xg28) */
+ 		_exit(0);
+ 	}
+@@ -537,33 +553,40 @@
+ static void patches(void)
+ {
+ 	static const uint32_t bx_lr[] = {
+-		0xc63d83cc, 0xc63d83da,		/* critical section enter/exit: INTC writes */
+-		0xc63b9d16,			/* c6033340 timer helper */
+-		0xc6658dcc,			/* veneer */
+-		0xc63ec10c, 0xc63ec13e, 0xc63ec17c, 0xc63ec1ba, 0xc63ec1f8,
++		FW(0xc63d83cc, E72_CRIT_EXIT), FW(0xc63d83da, E72_CRIT_ENTER),		/* critical section enter/exit: INTC writes */
++		FW(0xc63b9d16, E72_C6033340_HELPER),			/* c6033340 timer helper */
++		FW(0xc6658dcc, E72_DSP_INVALIDATE),			/* veneer */
++		FW(0xc63ec10c, E72_HOST_SVC_58), FW(0xc63ec13e, E72_HOST_SVC_5C), FW(0xc63ec17c, E72_HOST_SVC_60), FW(0xc63ec1ba, E72_HOST_SVC_64), FW(0xc63ec1f8, E72_HOST_SVC_68),
+ 	};
+ 	for (unsigned i = 0; i < sizeof(bx_lr) / sizeof(bx_lr[0]); i++)
+ 		thumb16(bx_lr[i], 0x4770);
+-	thumb16(0xc63ec494, 0x2000);	/* movs r0,#0; bx lr */
+-	thumb16(0xc63ec496, 0x4770);
++	thumb16(FW(0xc63ec494, E72_HOST_SVC_MOVS0), 0x2000);	/* movs r0,#0; bx lr */
++	thumb16(FW(0xc63ec496, (E72_HOST_SVC_MOVS0+2u)), 0x4770);
+ 	/* E6 had INTC wrappers, the E5 inlines them: NOP the two bl's */
+-	thumb16(0xc63b9bba, 0x46c0); thumb16(0xc63b9bbc, 0x46c0);
+-	thumb16(0xc63b9cfa, 0x46c0); thumb16(0xc63b9cfc, 0x46c0);
+-	word(0xc6658ce4, 0xe3a00013);	/* get CPSR -> SVC mode */
+-	word(0xc6658ce8, 0xe12fff1e);
+-	word(0xc6658da4, 0xe12fff1e);	/* cache barrier -> bx lr */
++	thumb16(FW(0xc63b9bba, E72_INTC_NOP_1), 0x46c0); thumb16(FW(0xc63b9bbc, (E72_INTC_NOP_1+2u)), 0x46c0);
++	thumb16(FW(0xc63b9cfa, E72_INTC_NOP_2), 0x46c0); thumb16(FW(0xc63b9cfc, (E72_INTC_NOP_2+2u)), 0x46c0);
++	word(FW(0xc6658ce4, E72_GET_CPSR), 0xe3a00013);	/* get CPSR -> SVC mode */
++	word(FW(0xc6658ce8, (E72_GET_CPSR+4u)), 0xe12fff1e);
++	word(FW(0xc6658da4, E72_CACHE_BARRIER), 0xe12fff1e);	/* cache barrier -> bx lr */
+ 	trap(FW_ASSERT, (void (*)())firmware_assert);
+ 	trap(FW_RESET, reset_entry);
+-	trap(0xc63c9d30, (void (*)())ring_panic);	/* MDI ring dump + reset 0xd (diagnostic) */
++	trap(FW(0xc63c9d30, E72_FW_RING_DUMP), (void (*)())ring_panic);	/* MDI ring dump + reset 0xd (diagnostic) */
+ 	/* DSP measurement frames (res 0x38 msg 0x15, from dev 0x7c) with a type-1 sub-block whose u16 at +6
+ 	 * is 0 make the sub-block parser c635492c call reset 0xa after it has already handled the block
+ 	 * (phone xo2/xo5: the DSP keeps the radio session it had under Symbian). Development patch: NOP the
+ 	 * reset call, the parser continues with the next sub-block (no E6 twin, upstream never met it) */
+-	static const unsigned char reset_a[] = {0x0a, 0x20, 0x83, 0xf0, 0xee, 0xf8};	/* movs r0,#0xa; bl c63d7be4 at c6354a02 */
+-	if (!memcmp((void *)0xc6354a02u, reset_a, sizeof(reset_a))) {
+-		thumb16(0xc6354a04, 0x46c0);
+-		thumb16(0xc6354a06, 0x46c0);
++	static const unsigned char reset_a[] = {0x0a, 0x20, 0x83, 0xf0, FW(0xee, 0x36), FW(0xf8, 0xfd)};	/* movs r0,#0xa; bl c63d7be4 at c6354a02 */
++#if FW_E72	/* the charger I2C bus belongs to Linux (i2c3, bq2415x): every HAL I2C request = "queue full" (2) */
++	static const uint32_t i2c_req[] = {E72_I2C_REQ_1, E72_I2C_REQ_2, E72_I2C_REQ_3, E72_I2C_REQ_4, E72_I2C_REQ_5, E72_I2C_REQ_6};
++	for (unsigned i = 0; i < sizeof(i2c_req) / sizeof(i2c_req[0]); i++) {	/* bytes checked by e72_fw_check */
++		thumb16(i2c_req[i], 0x2000 | E72_I2C_QUEUE_FULL);	/* movs r0, #2 */
++		thumb16(i2c_req[i] + 2, 0x4770);	/* bx lr */
+ 	}
++#endif
++	if (!memcmp((void *)FW(0xc6354a02u, E72_RESET_A_SITE), reset_a, sizeof(reset_a))) {
++		thumb16(FW(0xc6354a04, (E72_RESET_A_SITE+2u)), 0x46c0);
++		thumb16(FW(0xc6354a06, (E72_RESET_A_SITE+4u)), 0x46c0);
++	}
+ }
+ 
+ static char altstack[65536];
+@@ -736,8 +759,8 @@
+  * sector writes for the host; api(13, callback) hands them over. They go to a
+  * private volatile store, the physical RAM drives are never written. Without it
+  * a firmware task that writes a sector waits forever. */
+-#define SBIF_API 0xc6346c37u		/* E6 c623ae0f: cmd 13 = drain to callback */
+-#define SBIF_CONTROL 0xc682baa4u	/* E6 c6813f48/58, same layout */
++#define SBIF_API FW(0xc6346c37u, E72_SBIF_API)		/* E6 c623ae0f: cmd 13 = drain to callback */
++#define SBIF_CONTROL FW(0xc682baa4u, E72_SBIF_CONTROL)	/* E6 c6813f48/58, same layout */
+ static unsigned char sbif_store[0xfc000];
+ static int sbif_attached;
+ static unsigned sbif_writes;
+@@ -861,7 +884,7 @@
+ 	if (ul_puts++ < 5) {
+ 		/* first few: read the real window back through e5mem (debugfs, no lasting mapping) */
+ 		static uint8_t back[UL_TB_SIZE];
+-		int in = open("/sys/kernel/debug/e5mem/10000000", O_RDONLY);
++		int in = open(FW("/sys/kernel/debug/e5mem/10000000", "/sys/kernel/debug/e72mem/10000000"), O_RDONLY);
+ 		ssize_t got = in < 0 ? -1 : pread(in, back, n, 0x140000 + offset);
+ 		if (in >= 0)
+ 			close(in);
+@@ -891,8 +914,8 @@
+ 		uint32_t le = (uint32_t)b[o + 3] << 24 | b[o + 2] << 16 | b[o + 1] << 8 | b[o];
+ 		const char *what = NULL;
+ 		uint32_t v = 0;
+-		if (be - 0x0fd50000u < DATA_SIZE) what = "ap-be", v = be;
+-		else if (le - 0x0fd50000u < DATA_SIZE) what = "ap-le", v = le;
++		if (be - FW(0x0fd50000u, (E72_DATA_PA-0x10000000u)) < DATA_SIZE) what = "ap-be", v = be;
++		else if (le - FW(0x0fd50000u, (E72_DATA_PA-0x10000000u)) < DATA_SIZE) what = "ap-le", v = le;
+ 		else if (be - DATA < DATA_SIZE || le - DATA < DATA_SIZE) what = "virt-data", v = be - DATA < DATA_SIZE ? be : le;
+ 		else if (be - DSP_BUF < 0x80000u || le - DSP_BUF < 0x80000u) what = "virt-dsp", v = be - DSP_BUF < 0x80000u ? be : le;
+ 		else if (be - 0x140000u < 0x80000u && !(b[7] == 0x3b && b[9] == 0x61 && o == 26)) what = "dsp-be", v = be;
+@@ -924,16 +947,16 @@
+ }
+ /* E5RT_FW_TRACE=all | id,id,.. (hex 0xa0..0xff): the firmware's own debug prints. Every trace site
+  * is `if (flags[id - 0xa0]) { set id; vsnprintf-style print }` with the flag bytes at
+- * *(void **)0xc685978c + 0xa0 (all 0 in a Symbian boot); the formatted text goes to the output
++ * *(void **)FW(0xc685978c, E72_FW_TRACE_FLAGS) + 0xa0 (all 0 in a Symbian boot); the formatted text goes to the output
+  * hook c63552d4 (r0 = length, r1 = id << 16, r2 = text). The runtime sets the flags in its
+  * private data and redirects c63552d4 into a ring (firmware stack: copy only), printed as
+  * "fw <ms> <id>: text" by the serve loop. E5RT_FW_TRACE_OFF=id,.. clears chosen ids. */
+-#define FW_DSP_INVALIDATE 0xc6658dccu	/* DSP get hook, defined with mdi below */
++#define FW_DSP_INVALIDATE FW(0xc6658dccu, E72_DSP_INVALIDATE)	/* DSP get hook, defined with mdi below */
+ static unsigned dsp_get_calls;
+ static uint32_t dsp_get_last[2];
+ void dsp_get_veneer(void);
+-#define FW_TRACE_FLAGS 0xc685978cu
+-#define FW_TRACE_SINK 0xc63552d4u
++#define FW_TRACE_FLAGS FW(0xc685978cu, E72_FW_TRACE_FLAGS)
++#define FW_TRACE_SINK FW(0xc63552d4u, E72_FW_TRACE_SINK)
+ static uint8_t fw_on[96];
+ static int fw_trace;
+ static struct { uint32_t ms; uint16_t id, n; char text[156]; } fw_ring[1024];
+@@ -1009,18 +1032,18 @@
+ static void fw_soak_report(void)
+ {
+ 	if (getenv("E5RT_SECURE_TEST")) {	/* the late-session crash path: "PA_DEVLOCK" read c636b106 */
+-		uint32_t (*devlock)(uint32_t, uint32_t) = (uint32_t (*)(uint32_t, uint32_t))(uintptr_t)0xc636b107u;
++		uint32_t (*devlock)(uint32_t, uint32_t) = (uint32_t (*)(uint32_t, uint32_t))(uintptr_t)FW(0xc636b107u, E72_SOAK_DEVLOCK);
+ 		uint32_t r = devlock(0xc6b0002cu, 0xc6b00044u);
+ 		printf("secure selftest: PA_DEVLOCK read returned %08x\n", r);
+ 		isi_identity_report();
+ 	}
+ 	if (getenv("E5RT_DSP_GET_TEST")) {	/* the firmware's own invalidate path: c6564082(ptr, len) */
+-		void (*invalidate)(uint32_t, uint32_t) = (void (*)(uint32_t, uint32_t))(uintptr_t)0xc6564083u;
++		void (*invalidate)(uint32_t, uint32_t) = (void (*)(uint32_t, uint32_t))(uintptr_t)FW(0xc6564083u, E72_SOAK_INVALIDATE);
+ 		invalidate(DSP_BUF + 0x5bd00, 0x40);
+ 		printf("dsp get selftest: calls %u, last %08x..%08x\n", dsp_get_calls, dsp_get_last[0], dsp_get_last[1]);
+ 	}
+ 	/* end-to-end check: the firmware's own id-0xa5 print wrapper (vsnprintf + output hook) */
+-	void (*print_a5)(const char *, ...) = (void (*)(const char *, ...))(uintptr_t)0xc6563b85u;
++	void (*print_a5)(const char *, ...) = (void (*)(const char *, ...))(uintptr_t)FW(0xc6563b85u, E72_SOAK_PRINT_A5);
+ 	static const char fmt[] = "fw trace selftest %d %s";
+ 	print_a5(fmt, 42, "ok");
+ 	fw_flush();
+@@ -1226,6 +1249,13 @@
+ 		}
+ 		if (!quiet)
+ 			printf("mdi rx %08x %08x %08x %08x\n", d[0], d[1], d[2], d[3]);
++#if MEAS_TAP	/* copy before the firmware sees the frame; payload = the driver's copy in our DSP window */
++		{
++			uint32_t off = d[3] - 0x140000u;
++			meas_tap_frame(d, off < 0x80000u ? (const uint8_t *)(uintptr_t)(DSP_BUF + off) : NULL,
++				       off < 0x80000u ? 0x80000u - off : 0, now_us());
++		}
++#endif
+ 		unsigned producer = *dsp & 31;
+ 		volatile uint32_t *slot = dsp + 1 + (producer & 15) * 4;
+ 		slot[0] = d[0]; slot[1] = d[1]; slot[2] = d[2]; slot[3] = d[3];
+@@ -1280,12 +1310,12 @@
+  * firmware a private copy, the physical drives are never written (upstream
+  * ramdrives_private) */
+ #define RAMDRIVES 0xcb600000u
+-#define RAMDRIVES_PA 0x11200000u
++#define RAMDRIVES_PA FW(0x11200000u, E72_RAMDRIVES_PA)
+ #define RAMDRIVES_SIZE 0xfc000u
+ static int ramdrives(void)
+ {
+ 	const uint32_t expected[] = {RAMDRIVES, 0x200, 0x7e000, 0, RAMDRIVES + 0x7e000, 0x200, 0x7e000, 1};
+-	if (memcmp((void *)(uintptr_t)0xc6823f3cu, expected, sizeof(expected))) {
++	if (memcmp((void *)(uintptr_t)FW(0xc6823f3cu, E72_RAMDRIVE_TABLE), expected, sizeof(expected))) {
+ 		fprintf(stderr, "unsupported SBIF RAM drive table\n");
+ 		return 1;
+ 	}
+@@ -1321,7 +1351,7 @@
+ static void ramdrives_from_dump(const char *dir)
+ {
+ 	region(0xcb600000u, 0xfc000);
+-	fill(dir, "low-11200000.bin", 0, 0xcb600000u, 0xfc000);
++	fill(dir, "low-11200000.bin", FW(0, E72_RAMDRIVES_DUMP_OFF), 0xcb600000u, 0xfc000);
+ }
+ static int live(const char *device, int probe_dev, int probe_res, unsigned seconds, const char *packet_device)
+ {
+@@ -1550,8 +1580,12 @@
+ 	alarm(15);
+ 
+ 	image(argv[1], "10480000.bin", CODE, CODE_SIZE);
+-	image(argv[1], "1fd50000.bin", DATA, DATA_SIZE);
+-	image(argv[1], "1ffe0000.bin", SECURE, SECURE_SIZE);
++#if FW_E72
++	if (e72_fw_check(e72_code_checks, sizeof(e72_code_checks) / sizeof(e72_code_checks[0])))
++		return 2;
++#endif
++	image(argv[1], FW("1fd50000.bin", "17d50000.bin"), DATA, DATA_SIZE);
++	image(argv[1], FW("1ffe0000.bin", "17fe0000.bin"), SECURE, SECURE_SIZE);
+ 	if (((uint8_t *)(uintptr_t)SCHED)[2] != 0x2f) {
+ 		fprintf(stderr, "snapshot not idle (current task %02x)\n", ((uint8_t *)(uintptr_t)SCHED)[2]);
+ 		return 1;
+@@ -1571,7 +1605,7 @@
+ 	 * from these buffers, e.g. for tags still waiting to be returned */
+ 	if (!(argc >= 4 && !strcmp(argv[2], "--mdi")) && !sim_mode && !os_test && !sim_backend_test && !identity_test && !kasumi_test)
+ 		fill(argv[1], "low-10000000.bin", 0x140000, DSP_BUF, 0x80000);	/* pa 10140000 (live: the driver fills it) */
+-	fill(argv[1], "1fb60000.bin", 0x130000, DSP_BUF + 0x80000, 0x50000);	/* pa 1fc90000 */
++	fill(argv[1], FW("1fb60000.bin", "17b60000.bin"), 0x130000, DSP_BUF + 0x80000, 0x50000);	/* pa 1fc90000 */
+ 	if (sim_mode && isi_sim_open(sim_mode >= 3 ? argv[3] : NULL, 0)) {
+ 		perror("SIM bridge");
+ 		return 1;
+@@ -1601,15 +1635,24 @@
+ 		fprintf(stderr, "unsupported identity reader\n");
+ 		return 2;
+ 	}
++#if FW_E72	/* debug hook not mapped on the E72 (trace flag table, soak diagnostics) */
++	if (getenv("E5RT_FW_TRACE"))
++		fprintf(stderr, "E5RT_FW_TRACE: not available on the E72, ignored\n");
++#else
+ 	if (getenv("E5RT_FW_TRACE") && (link || soak)) {
+ 		fw_trace_install(getenv("E5RT_FW_TRACE"));
+ 		if (soak && fw_trace)
+ 			atexit(fw_soak_report);
+ 	}
++#endif
+ 	if (isi_sim_active()) {
+ 		/* E5 SIM patch window: va c60f0000 = pa 0x100ec000 (Symbian page tables), executable */
+ 		region(0xc60f0000u, 0x1000);
+-		fill(argv[1], "100ec000.bin", 0, 0xc60f0000u, 0x1000);
++		fill(argv[1], FW("100ec000.bin", "100db000.bin"), 0, 0xc60f0000u, 0x1000);
++#if FW_E72
++		if (e72_fw_check(e72_sim_checks, sizeof(e72_sim_checks) / sizeof(e72_sim_checks[0])))
++			return 2;
++#endif
+ 		isi_sim_patches();
+ 		if (isi_sim_map()) {
+ 			perror("SIM register page");
+@@ -1654,6 +1697,9 @@
+ 			isi_sim_attach();
+ 		if (os_live)
+ 			isi_os_timer_attach();
++#if MEAS_TAP
++		meas_tap_init();	/* E5RT_MEAS_TAP=<file|fifo>, off by default */
++#endif
+ 		return live(argv[3], probe_dev, probe_res, seconds, packet_device);
+ 	}
+ 	if (identity_test)
+@@ -1662,7 +1708,7 @@
+ 		return isi_kasumi_selftest();
+ 	if (soak) {
+ 		if (hs_trace) {	/* each cache wrapper once through its trap: counts + arguments */
+-			static const uint32_t site[5] = {0xc63ec10c, 0xc63ec13e, 0xc63ec17c, 0xc63ec1ba, 0xc63ec1f8};
++			static const uint32_t site[5] = {FW(0xc63ec10c, E72_HOST_SVC_58), FW(0xc63ec13e, E72_HOST_SVC_5C), FW(0xc63ec17c, E72_HOST_SVC_60), FW(0xc63ec1ba, E72_HOST_SVC_64), FW(0xc63ec1f8, E72_HOST_SVC_68)};
+ 			for (unsigned i = 0; i < 5; i++)
+ 				((void (*)(uint32_t, uint32_t, uint32_t))(uintptr_t)(site[i] | 1))(0xc6800000u + i, 0x100u + i, 7);
+ 			hs_service(0);
+@@ -1678,7 +1724,11 @@
+ 				"mov r7, %0\n"
+ 				"ldr r0, =0x11111111\nldr r1, =0x22222222\nldr r2, =0x33333333\n"
+ 				"ldr r4, =0x44444444\nldr r5, =0x55555555\nldr r12, =0xcccccccc\n"
++#if FW_E72
++				"ldr r6, =0xc63f117b\n"	/* E72_HOST_SVC_64 | 1 */
++#else
+ 				"ldr r6, =0xc63ec1bb\n"
++#endif
+ 				"msr cpsr_f, #0xa0000000\n"	/* N and C set */
+ 				"blx r6\n"
+ 				"mrs r3, cpsr\n"
+--- a/linux/e5-cell/sim/identity_runtime.c
++++ b/linux/e5-cell/sim/identity_runtime.c
+@@ -13,7 +13,7 @@
+ #include "identity_runtime.h"
+ #include "thumb_redirect.h"
+ 
+-#define READER 0xc636a06eu
++#define READER FW(0xc636a06eu, E72_IDENTITY_READER)
+ #define POOL_LO 0xc6b0002cu
+ #define POOL_HI 0xc6b08000u
+ 
+@@ -66,18 +66,18 @@
+ 	if(count!=secure_reported && secure_reported<16){fprintf(stderr,"secure service call answered -1 (%u calls, last op %02x req ..%06x)\n",count,secure_last_arg>>24,secure_last_arg&0xffffff);secure_reported=count;}
+ }
+ int isi_identity_attach(void){
+-	static const unsigned char item_entry[]={0xfe,0xb5,0x05,0x46,0x0e,0x46,0x9a,0x4c,0x9b,0x48,0xa0,0x60};
+-	if(memcmp((void *)0xc636a9e6u,item_entry,sizeof(item_entry))){return -1;}
+-	isi_thumb_redirect((void *)0xc636a9e6u,(uintptr_t)secure_item_size);
+-	static const unsigned char v2p_entry[]={0x70,0xb5,0x05,0x46,0xb7,0x4c,0x20,0x68};
++	static const unsigned char item_entry[]={0xfe,0xb5,0x05,0x46,0x0e,0x46,FW(0x9a,0x60),0x4c,FW(0x9b,0x5e),0x48,0xa0,0x60};
++	if(memcmp((void *)FW(0xc636a9e6u, E72_SECURE_ITEM_SIZE),item_entry,sizeof(item_entry))){return -1;}
++	isi_thumb_redirect((void *)FW(0xc636a9e6u, E72_SECURE_ITEM_SIZE),(uintptr_t)secure_item_size);
++	static const unsigned char v2p_entry[]={0x70,0xb5,0x05,0x46,FW(0xb7,0xbf),0x4c,0x20,0x68};
+ 	static const unsigned char call_entry[]={0x0f,0xb4,0x10,0xb5,0xff,0xf7,0xec,0xef};
+-	if(memcmp((void *)0xc63ebfbau,v2p_entry,sizeof(v2p_entry)) || memcmp((void *)0xc636b908u,call_entry,sizeof(call_entry))){return -1;}
+-	*(volatile uint16_t *)0xc63ebfbau=0x4770;	/* bx lr: the address comes back unchanged */
++	if(memcmp((void *)FW(0xc63ebfbau, E72_HOST_V2P),v2p_entry,sizeof(v2p_entry)) || memcmp((void *)FW(0xc636b908u, E72_SECURE_CALL),call_entry,sizeof(call_entry))){return -1;}
++	*(volatile uint16_t *)FW(0xc63ebfbau, E72_HOST_V2P)=0x4770;	/* bx lr: the address comes back unchanged */
+ 	/* the services first look their item name up in a secure-shared table (*(c6831100 + 4) =
+ 	   cb294000 in the Symbian boot, not mapped in e5rt). With no table the lookup c636969a
+ 	   returns -2 and the service returns -1 before any secure call. */
+-	if(*(volatile uint32_t *)0xc6831104u-0xcb000000u<0x1000000u){*(volatile uint32_t *)0xc6831104u=0;}
+-	isi_thumb_redirect((void *)0xc636b908u,(uintptr_t)secure_entry);
++	if(*(volatile uint32_t *)FW(0xc6831104u, E72_SECURE_TABLE_PTR)-0xcb000000u<0x1000000u){*(volatile uint32_t *)FW(0xc6831104u, E72_SECURE_TABLE_PTR)=0;}
++	isi_thumb_redirect((void *)FW(0xc636b908u, E72_SECURE_CALL),(uintptr_t)secure_entry);
+ 	if(!loaded){return 0;}
+ 	void *entry=(void *)READER;
+ 	static const unsigned char expected[]={0x70,0xb5,0x06,0x46,0xe7,0x4d,0xe5,0x48,0x0c,0x46,0xa8,0x60};
+--- a/linux/e5-cell/sim/identity_runtime.h
++++ b/linux/e5-cell/sim/identity_runtime.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #ifndef ISI_IDENTITY_RUNTIME_H
+ #define ISI_IDENTITY_RUNTIME_H
++#include "fwsel.h"	/* E5 / E72 firmware addresses: FW(e5, e72) */
+ 
+ int isi_identity_load(const char *path);
+ int isi_identity_attach(void);
+--- a/linux/e5-cell/sim/kasumi_runtime.c
++++ b/linux/e5-cell/sim/kasumi_runtime.c
+@@ -65,8 +65,8 @@
+ }
+ 
+ static void f8_batch(const uint8_t *batch,const unsigned char *key,uint32_t bearer,uint32_t direction){
+-	void (*schedule)(const unsigned char *)=(void *)0xc6655d0f;
+-	void (*cipher)(unsigned char *)=(void *)0xc6655c9b;
++	void (*schedule)(const unsigned char *)=(void *)FW(0xc6655d0f, E72_KASUMI_KEYSCHED);
++	void (*cipher)(unsigned char *)=(void *)FW(0xc6655c9b, E72_KASUMI_CIPHER);
+ 	if(!batch){return;}
+ 	uint32_t address=(uintptr_t)batch;
+ 	if(!private_range(address,4) || (address&3) || bearer>31 || direction>1){invalid();}
+@@ -105,11 +105,11 @@
+ static uint32_t kasumi_stack[2048] __attribute__((aligned(8)));
+ static uint32_t f9_soft(uint32_t a0,uint32_t a1,uint32_t a2,uint32_t a3,uint32_t s0,uint32_t s1,uint32_t s2){
+ 	const uint32_t a[7]={a0,a1,a2,a3,s0,s1,s2};
+-	return call_on_stack(kasumi_stack+2048,(void *)0xc6655f13,a,7);
++	return call_on_stack(kasumi_stack+2048,(void *)FW(0xc6655f13, E72_KASUMI_SW_F9),a,7);
+ }
+ static uint32_t f8_soft(uint32_t a0,uint32_t a1,uint32_t a2,uint32_t a3,uint32_t s0,uint32_t s1){
+ 	const uint32_t a[6]={a0,a1,a2,a3,s0,s1};
+-	return call_on_stack(kasumi_stack+2048,(void *)0xc6655e59,a,6);
++	return call_on_stack(kasumi_stack+2048,(void *)FW(0xc6655e59, E72_KASUMI_SW_F8),a,6);
+ }
+ static void f8_batch_private(const uint8_t *batch,const unsigned char *key,uint32_t bearer,uint32_t direction){
+ 	const uint32_t a[4]={(uintptr_t)batch,(uintptr_t)key,bearer,direction};
+@@ -121,25 +121,25 @@
+ 	*(uint16_t *)site=hi;*(uint16_t *)(site+2)=lo;
+ }
+ void isi_kasumi_patches(void){
+-	if(*(uint16_t *)0xc6655426!=0xd30a || *(uint16_t *)0xc6655508!=0xd30b){fprintf(stderr,"unsupported KASUMI selectors\n");_Exit(1);}
++	if(*(uint16_t *)FW(0xc6655426, E72_KASUMI_SELECTOR)!=0xd30a || *(uint16_t *)FW(0xc6655508, E72_KASUMI_F9_BLO)!=0xd30b){fprintf(stderr,"unsupported KASUMI selectors\n");_Exit(1);}
+ 	static const unsigned char batch_entry[]={0xff,0xb5,0x84,0xb0,0x00,0x24,0x00,0x28,0x05,0x46,0xa4,0x46};
+-	if(memcmp((void *)0xc6655aac,batch_entry,sizeof(batch_entry))){fprintf(stderr,"unsupported KASUMI f8 batch\n");_Exit(1);}
+-	*(uint16_t *)0xc6655426=0x46c0;
+-	*(uint16_t *)0xc6655508=0x46c0;
++	if(memcmp((void *)FW(0xc6655aac, E72_KASUMI_F8_BATCH),batch_entry,sizeof(batch_entry))){fprintf(stderr,"unsupported KASUMI f8 batch\n");_Exit(1);}
++	*(uint16_t *)FW(0xc6655426, E72_KASUMI_SELECTOR)=0x46c0;
++	*(uint16_t *)FW(0xc6655508, E72_KASUMI_F9_BLO)=0x46c0;
+ 	static const unsigned char bl9[]={0x00,0xf0,0xf9,0xfc},bl8[]={0x00,0xf0,0x0e,0xfd};	/* bl c6655f12 / bl c6655e58 */
+-	if(memcmp((void *)0xc665551c,bl9,4) || memcmp((void *)0xc6655438,bl8,4)){fprintf(stderr,"unsupported KASUMI software calls\n");_Exit(1);}
+-	isi_thumb_redirect((void *)0xc6655524,(uintptr_t)f9_soft);thumb_bl(0xc665551c,0xc6655524);	/* veneers in the dead hardware blocks */
+-	isi_thumb_redirect((void *)0xc6655440,(uintptr_t)f8_soft);thumb_bl(0xc6655438,0xc6655440);
+-	isi_thumb_redirect((void *)0xc6655aac,(uintptr_t)f8_batch_private);
++	if(memcmp((void *)FW(0xc665551c, E72_KASUMI_BL9_SITE),bl9,4) || memcmp((void *)FW(0xc6655438, E72_KASUMI_BL8_SITE),bl8,4)){fprintf(stderr,"unsupported KASUMI software calls\n");_Exit(1);}
++	isi_thumb_redirect((void *)FW(0xc6655524, E72_KASUMI_HW_BLOCK9),(uintptr_t)f9_soft);thumb_bl(FW(0xc665551c, E72_KASUMI_BL9_SITE),FW(0xc6655524, E72_KASUMI_HW_BLOCK9));	/* veneers in the dead hardware blocks */
++	isi_thumb_redirect((void *)FW(0xc6655440, E72_KASUMI_HW_BLOCK8),(uintptr_t)f8_soft);thumb_bl(FW(0xc6655438, E72_KASUMI_BL8_SITE),FW(0xc6655440, E72_KASUMI_HW_BLOCK8));
++	isi_thumb_redirect((void *)FW(0xc6655aac, E72_KASUMI_F8_BATCH),(uintptr_t)f8_batch_private);
+ }
+ int isi_kasumi_selftest(void){
+ 	/* ETSI TS135203 4.5 (f8 test set 1), through the redirected E5 batch entry */
+ 	const unsigned char key[]={0x5a,0xcb,0x1d,0x64,0x4c,0x0d,0x51,0x20,0x4e,0xa5,0xf1,0x45,0x10,0x10,0xd8,0x52};
+ 	const unsigned char plain[]={0xad,0x9c,0x44,0x1f,0x89,0x0b,0x38,0xc4,0x57,0xa4,0x9d,0x42,0x14,0x07,0xe8};
+ 	const unsigned char expected[]={0x9b,0xc9,0x2c,0xa8,0x03,0xc6,0x7b,0x28,0xa1,0x1a,0x4b,0xee,0x5a,0x0c,0x25};
+-	void *(*allocate)(unsigned)=(void *)0xc63c646d;
+-	void (*release)(void *)=(void *)0xc63c69bf;
+-	void (*batch_entry)(void *,void *,unsigned,unsigned)=(void *)0xc6655aad;
++	void *(*allocate)(unsigned)=(void *)FW(0xc63c646d, E72_FW_ALLOCATE);
++	void (*release)(void *)=(void *)FW(0xc63c69bf, E72_FW_RELEASE);
++	void (*batch_entry)(void *,void *,unsigned,unsigned)=(void *)FW(0xc6655aad, (E72_KASUMI_F8_BATCH|1u));
+ 	unsigned char *storage=allocate(96);if(!storage){return 1;}
+ 	uint32_t *batch=(void *)storage;
+ 	unsigned char *testkey=storage+48,*data=storage+64;
+@@ -161,7 +161,7 @@
+ 		{"D42F682428201CAFCD9F97945E6DE7B7","B5924384328A4AE00B737109F8B6C8DD2B4DB63DD533981CEB19AAD52A5B2BC0",0x3EDC87E2,0xA4F2D8E2,1,254,0xA9DAF1FF},
+ 		{"FDB9CFDF28936CC483A31869D81B8FAB","5932BC0ACE2B0ABA33D8AC188AC54F346FAD10BF9DEE2920B43BD0C53A915CB7DF6CAA72053ABFF2",0x36AF6144,0x9838F03A,1,319,0x1537D316},
+ 	};
+-	void (*f9)(const void *,uint32_t,const void *,uint32_t,uint32_t,void *,uint32_t,uint32_t)=(void *)0xc66554c7;
++	void (*f9)(const void *,uint32_t,const void *,uint32_t,uint32_t,void *,uint32_t,uint32_t)=(void *)FW(0xc66554c7, E72_KASUMI_F9);
+ 	int bad=0;
+ 	for(unsigned t=0;t<3;t++){
+ 		unsigned char *m=allocate(128);if(!m){return 1;}
+@@ -179,7 +179,7 @@
+ 	if(bad){fprintf(stderr,"UMTS f9 software mismatch\n");return 1;}
+ 	/* the traced single-message f8 wrapper c66553d5 (selector c6655426 NOPed: software c6655e58):
+ 	   data, bits, CK, COUNT-C; stack bearer, direction, algorithm (1 = UEA1) */
+-	void (*f8_single)(void *,uint32_t,const void *,uint32_t,uint32_t,uint32_t,uint32_t)=(void *)0xc66553d5;
++	void (*f8_single)(void *,uint32_t,const void *,uint32_t,uint32_t,uint32_t,uint32_t)=(void *)FW(0xc66553d5, E72_KASUMI_F8_WRAPPER);
+ 	unsigned char *w=allocate(64);if(!w){return 1;}
+ 	memcpy(w+32,key,16);memcpy(w,plain,sizeof(plain));w[15]=0xa5;
+ 	f8_single(w,120,w+32,0xfa556b26,3,1,1);
+@@ -194,7 +194,7 @@
+ 		memset(st,0,48);st[0]=1;((uint32_t *)st)[1]=(uintptr_t)m;((uint32_t *)st)[2]=120;((uint32_t *)st)[3]=0xfa556b26;
+ 		uint32_t ab[4]={(uintptr_t)st,(uintptr_t)(m+32),3,1};
+ 		fprintf(stderr,"KASUMI stack depth: f9 c66554c7 %u, f8 wrapper c66553d5 %u, f8 batch c6655aad %u bytes\n",
+-			stack_depth((void *)0xc66554c7,a9,8),stack_depth((void *)0xc66553d5,a8,7),stack_depth((void *)0xc6655aad,ab,4));
++			stack_depth((void *)FW(0xc66554c7, E72_KASUMI_F9),a9,8),stack_depth((void *)FW(0xc66553d5, E72_KASUMI_F8_WRAPPER),a8,7),stack_depth((void *)FW(0xc6655aad, (E72_KASUMI_F8_BATCH|1u)),ab,4));
+ 		release(st);release(m);
+ 	}
+ 	puts("original software KASUMI: ETSI 120-bit UMTS f8 through the E5 batch layout, per-record COUNT, selectors patched; UIA1 f9 ETSI sets 1-3 through c66554c7, f8 set 1 through the wrapper c66553d5");return 0;
+--- a/linux/e5-cell/sim/kasumi_runtime.h
++++ b/linux/e5-cell/sim/kasumi_runtime.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #ifndef RYISI_KASUMI_RUNTIME_H
+ #define RYISI_KASUMI_RUNTIME_H
++#include "fwsel.h"	/* E5 / E72 firmware addresses: FW(e5, e72) */
+ 
+ void isi_kasumi_patches(void);
+ int isi_kasumi_selftest(void);
+--- a/linux/e5-cell/sim/os_timer_runtime.c
++++ b/linux/e5-cell/sim/os_timer_runtime.c
+@@ -25,14 +25,14 @@
+ #define POOL 240u		/* copied timer pool slots */
+ #define IDS 237u		/* OS timer ids (< 0xed) */
+ #define CODE_LO 0xc6300000u
+-#define CODE_HI 0xc66ae000u
++#define CODE_HI FW(0xc66ae000u, E72_CODE_END)
+ #define DATA_LO 0xc6800000u
+ #define DATA_HI 0xc6a80000u
+-#define OS_TABLE 0xc6832e8cu	/* 28-byte entries: +0x10 owner task, +0x11 flags, +0x12 state */
+-#define COPIED_POOL 0xc683496cu
+-#define SCHEDULER 0xc6835c3cu
+-#define OS_START 0xc63ba68fu
+-#define OS_STOP 0xc63ba94fu
++#define OS_TABLE FW(0xc6832e8cu, E72_OS_TABLE)	/* 28-byte entries: +0x10 owner task, +0x11 flags, +0x12 state */
++#define COPIED_POOL FW(0xc683496cu, E72_COPIED_POOL)
++#define SCHEDULER FW(0xc6835c3cu, E72_SCHED)
++#define OS_START FW(0xc63ba68fu, E72_OS_START)
++#define OS_STOP FW(0xc63ba94fu, E72_OS_STOP)
+ #define ENERGY_TASK 28u
+ #define WATCHDOG_ID 172u
+ #define WATCHDOG_TASK 26u
+@@ -40,7 +40,7 @@
+ #define DSP_WATCHDOG_TASK 34u
+ #define TEST_ID 29u
+ #define ENERGY_ID 183u
+-#define BX_LR_CALLBACK 0xc63b9d17u	/* the c6033340 helper, patched to bx lr */
++#define BX_LR_CALLBACK FW(0xc63b9d17u, (E72_C6033340_HELPER|1u))	/* the c6033340 helper, patched to bx lr */
+ 
+ struct os_timer{uint64_t deadline,serial;uint32_t callback,arg;int active;};
+ static struct os_timer timers[POOL];
+@@ -137,9 +137,9 @@
+ 
+ void isi_os_timer_patches(void){
+ 	const uintptr_t entries[][2]={
+-		{0xc63bb89c,(uintptr_t)create},{0xc63bb954,(uintptr_t)cancel},
+-		{0xc63bba60,(uintptr_t)remaining},{0xc63bbb9e,(uintptr_t)next_remaining},
+-		{0xc63ba434,(uintptr_t)elapsed},{0xc63bb852,(uintptr_t)rebase},
++		{FW(0xc63bb89c, E72_TIMER_CREATE),(uintptr_t)create},{FW(0xc63bb954, E72_TIMER_CANCEL),(uintptr_t)cancel},
++		{FW(0xc63bba60, E72_TIMER_REMAINING),(uintptr_t)remaining},{FW(0xc63bbb9e, E72_TIMER_NEXT_REMAINING),(uintptr_t)next_remaining},
++		{FW(0xc63ba434, E72_OS_ELAPSED),(uintptr_t)elapsed},{FW(0xc63bb852, E72_OS_REBASE),(uintptr_t)rebase},
+ 	};
+ 	for(unsigned i=0;i<sizeof(entries)/sizeof(entries[0]);i++){isi_thumb_redirect((void *)entries[i][0],entries[i][1]);}
+ }
+@@ -158,8 +158,8 @@
+ 		start(TEST_ID,ticks+1);
+ 		if(advance((ticks+1)*5000)!=1 || *state!=3){fprintf(stderr,"rearm %u\n",ticks);return 1;}
+ 	}
+-	uint32_t (*arm)(uint32_t,uint32_t,uint32_t)=(void *)0xc63bb89d;
+-	uint32_t (*left)(uint32_t)=(void *)0xc63bba61,(*remove)(uint32_t)=(void *)0xc63bb955;
++	uint32_t (*arm)(uint32_t,uint32_t,uint32_t)=(void *)FW(0xc63bb89d, (E72_TIMER_CREATE|1u));
++	uint32_t (*left)(uint32_t)=(void *)FW(0xc63bba61, (E72_TIMER_REMAINING|1u)),(*remove)(uint32_t)=(void *)FW(0xc63bb955, (E72_TIMER_CANCEL|1u));
+ 	uint32_t handles[POOL];
+ 	for(unsigned i=0;i<POOL;i++){
+ 		handles[i]=arm(1000000+i,BX_LR_CALLBACK,0);
+@@ -185,7 +185,7 @@
+ 	const char *t=getenv("E5RT_OS_TRACE");trace=t && !strcmp(t,"1");
+ 	live_clock=1;sync_clock();baseline=now;unsigned copied=adopt();
+ 	uint32_t config=*(uint32_t *)(uintptr_t)(SCHEDULER+0x20);
+-	if(config<CODE_LO || config>CODE_HI-48*16 || *(uint32_t *)(uintptr_t)(config+ENERGY_TASK*16)!=0xc6329389 || *(uint32_t *)(uintptr_t)(config+WATCHDOG_TASK*16)!=0xc63ca065 || *(uint32_t *)(uintptr_t)(config+DSP_WATCHDOG_TASK*16)!=0xc63c8b75){invalid("unsupported task ownership");}
++	if(config<CODE_LO || config>CODE_HI-48*16 || *(uint32_t *)(uintptr_t)(config+ENERGY_TASK*16)!=FW(0xc6329389, E72_TASK28_ENTRY) || *(uint32_t *)(uintptr_t)(config+WATCHDOG_TASK*16)!=FW(0xc63ca065, E72_TASK26_ENTRY) || *(uint32_t *)(uintptr_t)(config+DSP_WATCHDOG_TASK*16)!=FW(0xc63c8b75, E72_TASK34_ENTRY)){invalid("unsupported task ownership");}
+ 	uint32_t (*stop)(uint32_t)=(void *)OS_STOP;unsigned energy=0,watchdogs=0;
+ 	for(unsigned i=0;i<IDS;i++){
+ 		const unsigned char *entry=os_entry(i);
+--- a/linux/e5-cell/sim/os_timer_runtime.h
++++ b/linux/e5-cell/sim/os_timer_runtime.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #ifndef RYISI_OS_TIMER_RUNTIME_H
+ #define RYISI_OS_TIMER_RUNTIME_H
++#include "fwsel.h"	/* E5 / E72 firmware addresses: FW(e5, e72) */
+ 
+ void isi_os_timer_patches(void);
+ int isi_os_timer_selftest(void);
+--- a/linux/e5-cell/sim/sim_runtime.c
++++ b/linux/e5-cell/sim/sim_runtime.c
+@@ -75,7 +75,7 @@
+ 	}
+ }
+ static int firmware_code(uint32_t address){
+-	return (address>=0xc6300000 && address<0xc66ae000) || (address>=0xc60f0000 && address<0xc60f0db8);
++	return (address>=0xc6300000 && address<FW(0xc66ae000, E72_CODE_END)) || (address>=0xc60f0000 && address<FW(0xc60f0db8, E72_SIM_PATCH_END));
+ }
+ static uint64_t sim_timer_create(uint32_t callback,uint32_t repeat,uint32_t microseconds){
+ 	if(!firmware_code(callback) || repeat>1 || !microseconds || microseconds>1000000){fatal("invalid HAL timer");}
+@@ -236,12 +236,12 @@
+ static unsigned int irq_index(uint32_t number){if(number<0xb1 || number>0xb6){fprintf(stderr,"SIM IRQ number %u\n",number);fatal("invalid IRQ");}return number-0xb1;}
+ static uint32_t irq_register(uint32_t number,uint32_t handler){
+ 	if(mdi_irq(number)){
+-		uint32_t expected=number==19 ? 0xc63c8f6d : number==21 ? 0xc63c9031 : 0xc63c8e0d;
++		uint32_t expected=number==19 ? FW(0xc63c8f6d, E72_FW_MDI_RX_IRQ) : number==21 ? FW(0xc63c9031, E72_FW_MDI_TX_IRQ) : FW(0xc63c8e0d, E72_FW_MDI_EVENT_IRQ);
+ 		if((handler&~1U)!=(expected&~1U)){fatal("unexpected MDI handler");}
+ 		return 0;
+ 	}
+ 	unsigned int index=irq_index(number);
+-	if(!((handler>=0xc6300000 && handler<0xc66ae000) || (handler>=0xc60f0000 && handler<0xc60f0db8))){fatal("invalid IRQ callback");}
++	if(!((handler>=0xc6300000 && handler<FW(0xc66ae000, E72_CODE_END)) || (handler>=0xc60f0000 && handler<FW(0xc60f0db8, E72_SIM_PATCH_END)))){fatal("invalid IRQ callback");}
+ 	handlers[index]=handler;return 0;
+ }
+ static void irq_control(uint32_t number,int enable){
+@@ -269,16 +269,16 @@
+ }
+ static void patch(uint32_t address,uintptr_t target){isi_thumb_redirect((void *)address,target);}
+ void isi_sim_patches(void){
+-	const unsigned char irq_entry[]={0xf8,0xb5,0x04,0x46,0x0d,0x46,0xd4,0x4f};	/* E5: same code, own literal offset */
+-	if(memcmp((void *)0xc63ebf44,irq_entry,sizeof(irq_entry))){fatal("unsupported host IRQ wrapper");}
+-	if(memcmp((void *)(uintptr_t)*(uint32_t *)0xc63ec5e0,adc_channels,sizeof(adc_channels))){fatal("unsupported ADC channel map");}
+-	patch(0xc63ec534,(uintptr_t)adc_read);
+-	patch(0xc63ec6b0,(uintptr_t)pmic_read);patch(0xc63ec64a,(uintptr_t)pmic_write);
+-	patch(0xc63ebf44,(uintptr_t)sim_irq_bind);
+-	patch(0xc63d83e8,(uintptr_t)irq_register);patch(0xc63d8442,(uintptr_t)irq_enable);patch(0xc63d8460,(uintptr_t)irq_disable);	/* E5: enable writes INTC +0xc, disable +0x10 */
+-	patch(0xc63d7ace,(uintptr_t)delay);
+-	patch(0xc63d6ec0,(uintptr_t)sim_timer_create);patch(0xc63d6fba,(uintptr_t)sim_timer_cancel);patch(0xc63d7084,(uintptr_t)sim_timer_remaining);
+-	if(!embedded_mode){patch(0xc638bfa0,(uintptr_t)owner_complete);patch(0xc638c270,(uintptr_t)transaction_complete);}
++	const unsigned char irq_entry[]={0xf8,0xb5,0x04,0x46,0x0d,0x46,FW(0xd4,0xdc),0x4f};	/* E5: same code, own literal offset */
++	if(memcmp((void *)FW(0xc63ebf44, E72_HOST_IRQ_BIND),irq_entry,sizeof(irq_entry))){fatal("unsupported host IRQ wrapper");}
++	if(memcmp((void *)(uintptr_t)*(uint32_t *)FW(0xc63ec5e0, E72_ADC_MAP_LITERAL),adc_channels,sizeof(adc_channels))){fatal("unsupported ADC channel map");}
++	patch(FW(0xc63ec534, E72_ADC_READ),(uintptr_t)adc_read);
++	patch(FW(0xc63ec6b0, E72_PMIC_READ),(uintptr_t)pmic_read);patch(FW(0xc63ec64a, E72_PMIC_WRITE),(uintptr_t)pmic_write);
++	patch(FW(0xc63ebf44, E72_HOST_IRQ_BIND),(uintptr_t)sim_irq_bind);
++	patch(FW(0xc63d83e8, E72_IRQ_REGISTER),(uintptr_t)irq_register);patch(FW(0xc63d8442, E72_IRQ_ENABLE),(uintptr_t)irq_enable);patch(FW(0xc63d8460, E72_IRQ_DISABLE),(uintptr_t)irq_disable);	/* E5: enable writes INTC +0xc, disable +0x10 */
++	patch(FW(0xc63d7ace, E72_DELAY),(uintptr_t)delay);
++	patch(FW(0xc63d6ec0, E72_SIM_TIMER_CREATE),(uintptr_t)sim_timer_create);patch(FW(0xc63d6fba, E72_SIM_TIMER_CANCEL),(uintptr_t)sim_timer_cancel);patch(FW(0xc63d7084, E72_SIM_TIMER_REMAINING),(uintptr_t)sim_timer_remaining);
++	if(!embedded_mode){patch(FW(0xc638bfa0, E72_SIM_OWNER_DONE),(uintptr_t)owner_complete);patch(FW(0xc638c270, E72_SIM_TXN_DONE),(uintptr_t)transaction_complete);}
+ }
+ 
+ /* E5RT_SIM_TRACE=1: card traffic summary, no data bytes (IMSI, RAND/AUTN stay out of logs):
+@@ -352,7 +352,7 @@
+ 	ucontext_t *uc=context;
+ 	_Static_assert(offsetof(ucontext_t,uc_mcontext.arm_pc)-offsetof(ucontext_t,uc_mcontext.arm_r0)==15*4,"ARM signal register layout");
+ 	uint32_t *regs=(uint32_t *)&uc->uc_mcontext.arm_r0,pc=regs[15];
+-	if(!(uc->uc_mcontext.arm_cpsr&32) || !((pc>=0xc6300000 && pc<0xc66adffe) || (pc>=0xc60f0000 && pc<0xc60f0db6))){return 0;}
++	if(!(uc->uc_mcontext.arm_cpsr&32) || !((pc>=0xc6300000 && pc<FW(0xc66adffe, (E72_CODE_END-2u))) || (pc>=0xc60f0000 && pc<FW(0xc60f0db6, (E72_SIM_PATCH_END-2u))))){return 0;}
+ 	struct isi_mmio access;
+ 	if(!isi_thumb_mmio(*(uint16_t *)pc,regs,&access) || access.address!=address){fatal("unsupported MMIO instruction");}
+ 	struct isi_sim_reg request={access.address-0xc6038300,access.size,access.value,access.write};
+@@ -407,7 +407,7 @@
+ 	for(unsigned int id=13;id<=15;id++){
+ 		if(!(pending&(0x2000>>(id-13)))){continue;}
+ 		trace_event(0x100|id);sim_event(5,0x100|id,pending);
+-		uint32_t handler=word(0xc683d280+8+id*4);
++		uint32_t handler=word(FW(0xc683d280, E72_PMIC_IRQ_TABLE)+8+id*4);
+ 		if(!firmware_code(handler)){fatal("Gazoo SIM handler");}
+ 		((void (*)(void))(uintptr_t)handler)();
+ 	}
+@@ -423,9 +423,9 @@
+ 	return ((producer-consumer)&(depth-1))>=batch;
+ }
+ void isi_sim_attach(void){
+-	uint32_t pointer=word(0xc638d46c);
++	uint32_t pointer=word(FW(0xc638d46c, E72_SIM_CTX_LITERAL));
+ 	if(!private_ram(pointer,4) || !private_ram(embedded_context=word(pointer),0x114)){fatal("embedded SIM context");}
+-	const uint32_t initial_handlers[]={0xc638d254,0xc638d250,0xc638d240,0xc638d244,0xc638d24c,0xc638d248};
++	const uint32_t initial_handlers[]={FW(0xc638d254, (E72_SIM_POOL+20u)),FW(0xc638d250, (E72_SIM_POOL+16u)),FW(0xc638d240, E72_SIM_POOL),FW(0xc638d244, (E72_SIM_POOL+4u)),FW(0xc638d24c, (E72_SIM_POOL+12u)),FW(0xc638d248, (E72_SIM_POOL+8u))};
+ 	for(unsigned int i=0;i<6;i++){irq_register(0xb1+i,word(initial_handlers[i]));}
+ 
+ 	if(device>=0 && word(embedded_context+0x30)==0){pmic_write(2,1,15,0x1000);}
+@@ -462,11 +462,11 @@
+ 	for(unsigned i=0;i<19;i++){peer.adc[i]=i*51;}
+ 	for(unsigned i=0;i<sizeof(adc_channels);i++){
+ 		uint32_t expected=adc_channels[i]==255 ? 0 : adc_channels[i]*51;
+-		if(((uint32_t (*)(uint32_t))0xc63ec535)(i)!=expected){fatal("Linux ADC channel mapping");}
++		if(((uint32_t (*)(uint32_t))FW(0xc63ec535, (E72_ADC_READ|1u)))(i)!=expected){fatal("Linux ADC channel mapping");}
+ 	}
+ 	peer.pmic[0][0x17]=0x30;
+ 	if(pmic_write(1,0x17,15,0x20)!=1 || peer.pmic[0][0x17]!=0x30){fatal("Linux watchdog ownership");}
+-	uint32_t (*bind_irq)(uint32_t,uint32_t,uint32_t)=(void *)0xc63ebf45;
++	uint32_t (*bind_irq)(uint32_t,uint32_t,uint32_t)=(void *)FW(0xc63ebf45, (E72_HOST_IRQ_BIND|1u));
+ 	const uint32_t numbers[]={0xb6,0xb4,0xb5},callbacks[]={0xc60f03d9,0xc60f0127,0xc60f048d};
+ 	for(unsigned i=0;i<3;i++){
+ 		unsigned index=numbers[i]-0xb1;uint32_t saved=handlers[index],was_enabled=enabled&(1U<<index);
+@@ -482,8 +482,8 @@
+ 	/* E5: upstream replays an E6-captured DSP SIM packet here (E6 buffer 0x90c755f0, descriptor 0x001b55f0);
+ 	 * no E5 capture yet, so only the wake MMIO check below */
+ 	uint32_t before=access_count;
+-	((void (*)(uint32_t))0xc638cf17)(embedded_context);
+-	if(access_count!=before+2 || last_pc!=0xc638cf36 || last_access.offset!=4 || !last_access.write){fatal("embedded SIM wake MMIO coverage");}
++	((void (*)(uint32_t))FW(0xc638cf17, E72_SIM_WAKE))(embedded_context);
++	if(access_count!=before+2 || last_pc!=FW(0xc638cf36, E72_SIM_WAKE_SITE) || last_access.offset!=4 || !last_access.write){fatal("embedded SIM wake MMIO coverage");}
+ 	if(!(peer.regs[1]&1) || peer.tx_count){fprintf(stderr,"SIM backend selftest: missing clock request\n");return 1;}
+ 	puts("SIM backend selftest: exact original SIM wake MMIO read/write passed with upper callbacks intact (no DSP packet replay on the E5)");return 0;
+ }
+@@ -522,14 +522,14 @@
+ }
+ 
+ static int exchange(uint32_t context,uint32_t tx,uint32_t rx,const unsigned char *command,unsigned int length,unsigned int expected){
+-	const uint32_t initial_handlers[]={0xc638d254,0xc638d250,0xc638d240,0xc638d244,0xc638d24c,0xc638d248};
++	const uint32_t initial_handlers[]={FW(0xc638d254, (E72_SIM_POOL+20u)),FW(0xc638d250, (E72_SIM_POOL+16u)),FW(0xc638d240, E72_SIM_POOL),FW(0xc638d244, (E72_SIM_POOL+4u)),FW(0xc638d24c, (E72_SIM_POOL+12u)),FW(0xc638d248, (E72_SIM_POOL+8u))};
+ 	if(device==-2){peer.tx_count=0;peer.rx_count=0;peer.pending=0;peer.tx_event=0;peer.tx_length=length;}
+ 	memcpy((void *)(tx+4),command,length);*(uint32_t *)tx=length;*(uint32_t *)rx=0;
+ 	*(unsigned char *)(sim_transaction+0x1c)=8;*(uint32_t *)(context+0x30)=1;
+ 	completion_event=0;fsm_event=0;
+ 	*(uint32_t *)(context+0x40)=length;*(uint32_t *)(context+0x44)=expected;*(uint32_t *)(context+0x4c)=expected==1 ? 1 : 2;
+ 	for(unsigned int i=0;i<6;i++){irq_register(0xb1+i,word(initial_handlers[i]));}
+-	void (*wake)(uint32_t)=(void *)0xc638cf17,(*start)(uint32_t)=(void *)0xc638cd1f;
++	void (*wake)(uint32_t)=(void *)FW(0xc638cf17, E72_SIM_WAKE),(*start)(uint32_t)=(void *)FW(0xc638cd1f, E72_SIM_START);
+ 
+ 	if(device>=0){pmic_write(2,1,15,0x1000);gazoo_poll=1;}traced=0;trace_event(0x200);
+ 	alarm(5);wake(context);delay(15000);start(context);wait_transaction(context,0);alarm(0);gazoo_poll=0;
+@@ -597,11 +597,15 @@
+ int isi_sim_run(int reset,int cycle){
+ 	reset_mode=reset;cycle_mode=cycle;
+ 	if(cycle && !reset){fatal("power cycle requires reset");}
+-	uint32_t pointer=word(0xc638d46c);
++	uint32_t pointer=word(FW(0xc638d46c, E72_SIM_CTX_LITERAL));
+ 	if(!private_ram(pointer,4)){fatal("SIM context pointer");}
+ 	uint32_t context=word(pointer);
+ 	if(!private_ram(context,0x114) || word(context+0x78)!=1){fatal("SIM is not ready in the snapshot");}
+ 	uint32_t tx=word(context+4),rx=word(context+8);
++#if FW_E72	/* fw 091.004 allocates the tx buffer per transaction and frees it afterwards (c6390d22: free,
++	   ctx+4 = 0), so an idle snapshot has none: allocate it like the SIM server does (zalloc c63d911a) */
++	if(!tx){tx=((uint32_t (*)(uint32_t))(E72_SIM_TX_ZALLOC|1u))(0x126);*(uint32_t *)(context+4)=tx;}
++#endif
+ 	if(!private_ram(tx,0x126) || !private_ram(rx,0x126)){fatal("SIM buffers");}
+ 	uint32_t owner=word(context),transaction;
+ 	if(!private_ram(owner,0x10) || !private_ram(transaction=word(owner+0xc),0x20)){fatal("SIM transaction metadata");}
+@@ -611,9 +615,9 @@
+ 	const unsigned char command[]={0x80,0xf2,0,0,0};
+ 	memcpy((void *)(tx+4),command,sizeof(command));*(uint32_t *)tx=sizeof(command);
+ 	*(uint32_t *)(context+0x40)=sizeof(command);*(uint32_t *)(context+0x44)=259;*(uint32_t *)(context+0x4c)=2;
+-	const uint32_t initial_handlers[]={0xc638d254,0xc638d250,0xc638d240,0xc638d244,0xc638d24c,0xc638d248};
++	const uint32_t initial_handlers[]={FW(0xc638d254, (E72_SIM_POOL+20u)),FW(0xc638d250, (E72_SIM_POOL+16u)),FW(0xc638d240, E72_SIM_POOL),FW(0xc638d244, (E72_SIM_POOL+4u)),FW(0xc638d24c, (E72_SIM_POOL+12u)),FW(0xc638d248, (E72_SIM_POOL+8u))};
+ 	for(unsigned int i=0;i<6;i++){irq_register(0xb1+i,word(initial_handlers[i]));}
+-	void (*wake)(uint32_t)=(void *)0xc638cf17,(*start)(uint32_t)=(void *)0xc638cd1f;
++	void (*wake)(uint32_t)=(void *)FW(0xc638cf17, E72_SIM_WAKE),(*start)(uint32_t)=(void *)FW(0xc638cd1f, E72_SIM_START);
+ 	alarm(device>=0 ? 5 : 15);
+ 	if(cycle){
+ 		uint32_t baseline=pmic_read(1,0x1e,15),selection=(baseline&6)>>1;
+@@ -631,7 +635,7 @@
+ 	if(reset){
+ 		const unsigned char atr[]={0x3b,0x05,'H','E','L','L','O'};
+ 		if(device==-2){memcpy(peer.rx,atr,sizeof(atr));peer.rx_length=sizeof(atr);}
+-		void (*cold_reset)(uint32_t)=(void *)0xc638d06b;cold_reset(context);
++		void (*cold_reset)(uint32_t)=(void *)FW(0xc638d06b, E72_SIM_COLD_RESET);cold_reset(context);
+ 	}else{wake(context);delay(15000);start(context);}
+ 	hardware_snapshot("started");
+ 	wait_transaction(context,reset);
+--- a/linux/e5-cell/sim/sim_runtime.h
++++ b/linux/e5-cell/sim/sim_runtime.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #ifndef RYISI_SIM_RUNTIME_H
+ #define RYISI_SIM_RUNTIME_H
++#include "fwsel.h"	/* E5 / E72 firmware addresses: FW(e5, e72) */
+ 
+ #include <signal.h>
+ 

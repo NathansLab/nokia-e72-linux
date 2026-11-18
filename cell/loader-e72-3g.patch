@@ -1,0 +1,15 @@
+Loader variant "3GLinuxE72" (NOT applied): boot_app.cpp picks E:\e72.dtb for every RB_E72
+build before it looks at RB_3G, so a 3G E72 build needs its own dtb name. Build with
+-DRB_IMAGE_BOOT -DRB_E5 -DRB_E5_ISAH -DRB_E72 -DRB_3G -DRB_LOGPHYS=0x17000000u, own UID and
+caption; MobileFiles() (E:\linux\e5-imei, e5-apn, 3G-README.txt) works unchanged.
+--- a/linux/stage0/symbian-loader/boot_app.cpp
++++ b/linux/stage0/symbian-loader/boot_app.cpp
+@@ -31,5 +31,7 @@
+ #endif
+-#if defined(RB_E72)
++#if defined(RB_E72) && defined(RB_3G)
++_LIT(KDtb, "E:\\e72-3g.dtb");	// 3GLinuxE72: e72.dtb (cell kernel) + e5.mobile=1
++#elif defined(RB_E72)
+ _LIT(KDtb, "E:\\e72.dtb");	// E72 (128 MB): own dtb, see linux/boot/e72.dts
+ #elif defined(RB_3G)
+ _LIT(KDtb, "E:\\e5-3g.dtb");	// 3GLinuxE5: e5.dtb + e5.mobile=1 on the bootargs
