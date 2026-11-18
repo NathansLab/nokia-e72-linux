@@ -1,0 +1,17 @@
+boot: started
+LoadLogicalDevice=0
+AllocBoot=0 phys=11600000
+zImage stream=13147952
+dtb stream=2080
+isah=0 ttbr0=142ac018 ttbr1=10000018 ttbcr=00000001
+isah l1[0]=100dd001
+isah l1[1]=100dd401
+isah l1[2]=100dd801
+isah l1[3]=100ddc01
+isah l1[4]=100da401
+isah l1[5]=100da801
+isah l1[6]=100dac01
+isah l1[7]=100da001
+l2 id=41000486 ctrl=00000001 aux=02050249
+handoff symbian tick=1239339 ms
+about-to-Boot (one-way)

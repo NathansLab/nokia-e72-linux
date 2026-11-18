@@ -1,0 +1,153 @@
+diff --git a/arch/arm/mach-rapuyama/secure_wdt.c b/arch/arm/mach-rapuyama/secure_wdt.c
+index f26ff09..5f80e19 100644
+--- a/arch/arm/mach-rapuyama/secure_wdt.c
++++ b/arch/arm/mach-rapuyama/secure_wdt.c
+@@ -37,8 +37,14 @@ struct swd_fw {
+ 	u32 sp_off;			/* guest offset of the parked task sp */
+ 	u32 alloc_fn, free_fn, pet_fn;
+ 	u32 pat_ptr;			/* E5: va of the pointer to the protected app table */
++	u32 keep_va[10];		/* E5 style: symbian pages the call reads, 0 ends */
++	u32 btrace_filter;		/* E72: va of symbian's 256 BTrace filter bytes */
+ };
+ 
++/* the E5 ROM pages and kernel tables of the software page table walk */
++#define E5_KEEP_VA { 0xc80088f4, 0x80107988, 0x800a03f0, 0x80065b28, \
++		     0x80066b28, 0x8008c23c, 0xc0030000, 0xc1003000 }
++
+ /*
+  * Several E5 firmwares share the "nokia,e5" compatible: the entry is chosen by
+  * its ISASW function prologues (swd_find_e5_fw()), first match wins.
+@@ -64,6 +70,7 @@ static const struct swd_fw swd_fws[] = {
+ 		.alloc_fn = 0xc6369443, .free_fn = 0xc636933d,
+ 		.pet_fn = 0xc636a2ef,
+ 		.pat_ptr = 0xc6831104,		/* -> 0xcb294000 in run 4 */
++		.keep_va = E5_KEEP_VA,
+ 	},
+ 	{	/* E5 fw 071.003: code -0x31a4, data -0xf0 against 101.003 (own dump);
+ 		 * run on the phone with the bridge ticking (pat_ptr = the 101.003
+@@ -77,6 +84,26 @@ static const struct swd_fw swd_fws[] = {
+ 		.alloc_fn = 0xc636629f, .free_fn = 0xc6366199,
+ 		.pet_fn = 0xc636714b,
+ 		.pat_ptr = 0xc6831014,
++		.keep_va = E5_KEEP_VA,
++	},
++	{	/* E72 RM-530 fw 091.004 (dump1 of 2026-11-18, the call emulated on
++		 * the dump): ISASW as the E5's, code +0x5730, data +0x590, the ram
++		 * top at 0x18000000. The stack is the parked task 0x10's (0x4f00
++		 * free below it). A BTrace handler is installed on this firmware
++		 * (0x802aa350) and reads kernel heap objects that linux overwrites:
++		 * the filter bytes are cleared instead, BTrace then returns early. */
++		.compat = "nokia,e72", .name = "E72 fw 091.004", .isah_ver = 2,
++		.guest_phys = RY_TOP(0x1fd50000), .guest_size = 0x38000,
++		.guest_end = 0xc6a80000,
++		.sig_off = { 0x6eb72, 0x6ea6c, 0x6fa1e },
++		.sig = { 0x4605b570, 0x4606b5f8, 0x4605b5fe },
++		.token_lit = 0x66afc, .sp_off = 0x36438,
++		.alloc_fn = 0xc636eb73, .free_fn = 0xc636ea6d,
++		.pet_fn = 0xc636fa1f,
++		.pat_ptr = 0xc68316cc,		/* -> 0xcb294000 in dump1 */
++		.keep_va = { 0xc80088f4, 0x80108098, 0x80109f20, 0x800a13fc,
++			     0x80066b28, 0xc0030000, 0xc1003000, 0xc8001b1c },
++		.btrace_filter = 0xc8001b1c,
+ 	},
+ };
+ 
+@@ -121,10 +148,18 @@ early_param("e6.swd", swd_param);
+  * kernel nothing is linux ram, above it nothing of symbian's is kept, so
+  * reserve those pages here, before anything is allocated.
+  */
+-static const u32 e5_keep_va[] __initconst = {
+-	0xc80088f4, 0x80107988, 0x800a03f0, 0x80065b28, 0x80066b28,
+-	0x8008c23c, 0xc0030000, 0xc1003000,
+-};
++static const char *const e5_style[] __initconst = { "nokia,e5", "nokia,e72" };
++
++/* the machine's compatible if its bridge is the E5 kind, NULL if not */
++static const char *__init swd_e5_style(void)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(e5_style); i++)
++		if (of_flat_dt_is_compatible(of_get_flat_dt_root(), e5_style[i]))
++			return e5_style[i];
++	return NULL;
++}
+ static const u32 e5_walk_mb[] __initconst = { 0xc63, 0xc68, 0xc6b, 0xcb2 };
+ #define E5_PAT_MAX	64
+ #define E5_PA_MAX	SZ_64K
+@@ -203,14 +238,14 @@ static u32 __init swd_read(u32 va)
+ }
+ 
+ /* E5: the entry whose ISASW prologues are in the code ram, NULL if none */
+-static const struct swd_fw *__init swd_find_e5_fw(void)
++static const struct swd_fw *__init swd_find_e5_fw(const char *compat)
+ {
+ 	const struct swd_fw *fw;
+ 	int i, j;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(swd_fws); i++) {
+ 		fw = &swd_fws[i];
+-		if (strcmp(fw->compat, "nokia,e5"))
++		if (strcmp(fw->compat, compat))
+ 			continue;
+ 		for (j = 0; j < 3; j++) {
+ 			u8 *p = early_memremap(CODE_PHYS + fw->sig_off[j], 4);
+@@ -233,11 +268,11 @@ void __init rapuyama_swd_reserve(void)
+ {
+ 	phys_addr_t kbase = round_down(__pa_symbol(_text), SZ_2M);
+ 	u32 *h, rec, pat, off = 0, len = 0, va, d;
++	const char *compat = swd_e5_style();
+ 	bool ok = true;
+ 	int i;
+ 
+-	if (!swd_enabled ||
+-	    !of_flat_dt_is_compatible(of_get_flat_dt_root(), "nokia,e5"))
++	if (!swd_enabled || !compat)
+ 		return;
+ 	h = early_memremap(ISAH_PHYS, PAGE_SIZE);
+ 	if (!h)
+@@ -249,15 +284,31 @@ void __init rapuyama_swd_reserve(void)
+ 		swd_keep_state = -1;
+ 		return;
+ 	}
+-	swd_sel = swd_find_e5_fw();
++	swd_sel = swd_find_e5_fw(compat);
+ 	if (!swd_sel) {
+ 		pr_err("rapuyama-swd: unknown ISASW build (not in swd_fws[]), nothing kept\n");
+ 		swd_keep_state = -1;
+ 		return;
+ 	}
+ 	pr_info("rapuyama-swd: ISASW build %s\n", swd_sel->name);
+-	for (i = 0; i < ARRAY_SIZE(e5_keep_va); i++)
+-		ok &= swd_keep(e5_keep_va[i], kbase);
++	for (i = 0; i < ARRAY_SIZE(swd_sel->keep_va) && swd_sel->keep_va[i]; i++)
++		ok &= swd_keep(swd_sel->keep_va[i], kbase);
++	if (swd_sel->btrace_filter) {
++		u32 pa = swd_va2pa(swd_sel->btrace_filter);
++		u8 *f = pa == ~0U || (pa & ~PAGE_MASK) > PAGE_SIZE - 256 ? NULL :
++			early_memremap(pa & PAGE_MASK, PAGE_SIZE);
++
++		if (f) {
++			memset(f + (pa & ~PAGE_MASK), 0, 256);
++			early_memunmap(f, PAGE_SIZE);
++			pr_info("rapuyama-swd: BTrace filter %08x pa %08x cleared\n",
++				swd_sel->btrace_filter, pa);
++		} else {
++			pr_err("rapuyama-swd: BTrace filter %08x not reachable\n",
++			       swd_sel->btrace_filter);
++			ok = false;
++		}
++	}
+ 	for (i = 0; i < ARRAY_SIZE(e5_walk_mb); i++) {
+ 		d = swd_l1(e5_walk_mb[i]);
+ 		if ((d & 3) != 1) {
+@@ -394,7 +445,8 @@ static int __init rapuyama_swd_init(void)
+ 	BUILD_BUG_ON(offsetof(struct swd_call, guest_sctlr) != 96);
+ 	if (!swd_enabled)
+ 		return 0;
+-	if (of_machine_is_compatible("nokia,e5"))
++	if (of_machine_is_compatible("nokia,e5") ||
++	    of_machine_is_compatible("nokia,e72"))
+ 		fw = swd_sel;	/* chosen by its signatures in rapuyama_swd_reserve() */
+ 	else
+ 		for (i = 0; i < ARRAY_SIZE(swd_fws); i++)

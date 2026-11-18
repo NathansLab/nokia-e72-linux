@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# podman stand-in inside the symbian-build container: "podman run ... -v src:dst ... -w dir IMAGE cmd..."
+# -> runs cmd directly with dst paths mapped back to src and python -> python2
+import os, sys
+a = sys.argv[1:]
+assert a and a[0] == "run", a
+a = a[1:]; maps = []; wd = None; i = 0
+while i < len(a):
+    x = a[i]
+    if x == "--rm": i += 1; continue
+    if x == "-v": s, d = a[i+1].split(":")[:2]; maps.append((d, s)); i += 2; continue
+    if x == "-w": wd = a[i+1]; i += 2; continue
+    break
+cmd = a[i+1:]  # skip image
+maps.sort(key=lambda m: -len(m[0]))
+def fix(p):
+    for d, s in maps:
+        if p == d or p.startswith(d + "/"): return s + p[len(d):]
+    return p
+cmd = [fix(c) for c in cmd]
+if cmd[0] == "python": cmd[0] = "python2"
+if wd: os.chdir(fix(wd))
+os.execvp(cmd[0], cmd)

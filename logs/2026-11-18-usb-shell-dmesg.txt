@@ -1,0 +1,127 @@
+dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.12.0 (root@21149e501f0c) (arm-linux-gnueabi-gcc (Debian 12.2.0-14) 12.2.0, GNU ld (GNU Binutils for Debian) 2.40) #2 Wed Nov 18 03:03:27 UTC 2026
+[    0.000000] CPU: ARMv6-compatible processor [410fb764] revision 4 (ARMv7), cr=00e5387d
+[    0.000000] CPU: VIPT aliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Nokia E72 RM-530 (RapuYama)
+[    0.000000] earlycon: ramcon0 at MMIO 0x17000000 (options '')
+[    0.000000] printk: legacy bootconsole [ramcon0] enabled
+[    0.000000] printk: debug: skip boot console de-registration.
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writeback
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] On node 0, zone Normal: 512 pages in unavailable ranges
+[    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+[    0.000000] pcpu-alloc: [0] 0 
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=0 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    0.000000] Unknown kernel command line parameters "pd_ignore_unused cma=0", will be passed to user space.
+[    0.000000] Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 23040
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rapuyama-intc: probe, parent=00000000
+[    0.000000] rapuyama-intc: domain=(ptrval) ready, handler installed
+[    0.000000] L2C-220 cache controller enabled, 8 ways, 256 kB
+[    0.000000] L2C-220: CACHE_ID 0x41000486, AUX_CTRL 0x02050249
+[    0.000000] sched_clock: 32 bits at 33kHz, resolution 30517ns, wraps every 65535999984741ns
+[    0.000274] clocksource: rapuyama-e5-fc: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 58327039986419 ns
+[    0.000579] rapuyama-e5-timer: 1 kHz base / 1000 Hz Linux tick (irq 16), counter 32768 Hz
+[    0.001586] rapuyama-intc: first irq hwirq=35
+[    0.001800] Console: colour dummy device 80x30
+[    0.002227] Calibrating delay loop... 187.13 BogoMIPS (lpj=93568)
+[    0.013793] CPU: Testing write buffer coherency: ok
+[    0.014251] pid_max: default: 32768 minimum: 301
+[    0.015258] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.015502] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.027252] Setting up static identity map for 0x11700000 - 0x11700038
+[    0.029052] dyndbg: Ignore empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build
+[    0.029449] Memory: 77544K/92160K available (7168K kernel code, 583K rwdata, 2028K rodata, 1024K init, 236K bss, 14208K reserved, 0K cma-reserved)
+[    0.031921] devtmpfs: initialized
+[    0.040924] VFP support v0.3: implementor 41 architecture 1 part 20 variant b rev 5
+[    0.042205] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    0.042480] futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+[    0.043212] pinctrl core: initialized pinctrl subsystem
+[    0.052703] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.057495] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.083831] raid6: skipped pq benchmark and selected int32x8
+[    0.084045] raid6: using intx1 recovery algorithm
+[    0.087219] usb_phy_generic usb-phy: dummy supplies not allowed for exclusive requests (id=vbus)
+[    0.089263] pps_core: LinuxPPS API ver. 1 registered
+[    0.089416] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <email removed>
+[    0.089813] PTP clock support registered
+[    0.090728] rapuyama: early soc watchdog feeding stopped, driver took over (stall detector 5 s, ramcon heartbeat 10 s)
+[    0.092010] input: Nokia E5 power key as /devices/platform/soc/20030700.watchdog/input/input0
+[    0.092285] rapuyama-wdt 20030700.watchdog: pmic + soc watchdog, 48 s, power key (taken 0, missed 0)
+[    0.105010] clocksource: Switched to clocksource rapuyama-e5-fc
+[    0.172821] NET: Registered PF_INET protocol family
+[    0.174468] IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.180023] tcp_listen_portaddr_hash hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.180358] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.180664] TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.180938] TCP bind hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.181427] TCP: Hash tables configured (established 1024 bind 1024)
+[    0.182159] UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.182434] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.183441] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.212982] Initialise system trusted keyrings
+[    0.214904] workingset: timestamp_bits=30 max_order=15 bucket_order=0
+[    2.228729] xor: measuring software checksum speed
+[    2.242584]    arm4regs        :   242 MB/sec
+[    2.270660]    8regs           :   117 MB/sec
+[    2.296447]    32regs          :   128 MB/sec
+[    2.296630] xor: using function: arm4regs (242 MB/sec)
+[    2.296874] Key type asymmetric registered
+[    2.297027] Asymmetric key parser 'x509' registered
+[    2.297485] io scheduler mq-deadline registered
+[    2.297729] io scheduler kyber registered
+[    2.298034] io scheduler bfq registered
+[    2.312042] zram: Added device: zram0
+[    2.316040] musb-hdrc musb-hdrc.0.auto: otg wrapper rev 0x40, devctl 0x98, power 0x20
+[    2.320404] using host ethernet address: 02:e7:20:00:00:01
+[    2.320465] using self ethernet address: 02:e7:20:00:00:02
+[    2.325103] g_cdc gadget.0: HOST MAC 02:e7:20:00:00:01
+[    2.325378] g_cdc gadget.0: MAC 02:e7:20:00:00:02
+[    2.326080] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[    2.326293] g_cdc gadget.0: g_cdc ready
+[    2.328918] i2c_dev: i2c /dev entries driver
+[    2.333374] NET: Registered PF_INET6 protocol family
+[    2.343963] Segment Routing with IPv6
+[    2.344696] In-situ OAM (IOAM) with IPv6
+[    2.345336] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    2.349884] NET: Registered PF_PACKET protocol family
+[    2.351531] rapuyama: isah v2 ttbr0=141ba018 ttbr1=10000018 ttbcr=00000001 dacr=00000001 ctx=20b44967 sctlr=30e5387d prrr=000aa8a4 nmrr=a840a840
+[    2.356811] rapuyama: isah superpage=00000000 machinedata=00000000
+[    2.388122] Loading compiled-in X.509 certificates
+[    2.430694] Btrfs loaded, zoned=no, fsverity=no
+[    2.435394] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    2.453979] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    2.467926] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    2.468200] clk: Not disabling unused clocks
+[    2.468994] platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    2.469238] cfg80211: failed to load regulatory.db
+[    2.469909] Warning: unable to open an initial console.
+[    2.490692] Freeing unused kernel image (initmem) memory: 1024K
+[    2.491882] Run /init as init process
+[    2.492034]   with arguments:
+[    2.492126]     /init
+[    2.492187]     pd_ignore_unused
+[    2.492309]   with environment:
+[    2.492401]     HOME=/
+[    2.492462]     TERM=linux
+[    2.492553]     cma=0
+[    2.926025] e6: init.sh v8 (usb shell + weston, tty1 shell as fallback)
+[    2.951354] zram0: detected capacity change from 0 to 262144
+[    7.021820] random: crng init done
+[    7.036407] Adding 131068k swap on /dev/zram0.  Priority:100 extents:1 across:131068k SS
+[    7.071319] e6: swap: /dev/zram0 131068 kB, 
+[    7.122436] e6: ttyGS0 is there, waiting for the pc to enumerate us
+[    7.169067] e6: usb configured, shell on ttyGS0
+[    7.199066] e6: shell on tty1 (screen + keypad)
+e6:/# 

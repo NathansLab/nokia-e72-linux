@@ -1,0 +1,41 @@
+# Nokia/TI firmware and calibration data: never commit
+wlan-fw/
+ti-connectivity/
+*wl1251*.bin
+*-fw.bin
+*-nvs*.bin
+*nvs*.bin
+*.nvs
+
+# RAM/ROM dumps, logs read from the card, disassemblies
+*.bin
+*.img
+*.dump
+e72ram*
+klog*
+ptdump.*
+*.thumb.s
+*.arm.s
+*.dis
+*.pkl
+
+# built packages, kernel images, certificates and keys
+*.sis
+*.sisx
+Image
+zImage
+*.dtb
+*.ko
+*.o
+*.elf
+*.pem
+*.key
+*.cer
+
+# Nokia service documents
+*.pdf
+
+# host junk
+.DS_Store
+__pycache__/
+*.pyc

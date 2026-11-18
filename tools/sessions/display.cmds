@@ -1,0 +1,12 @@
+uptime; cat /proc/cmdline
+dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+ls /sys/class/drm /sys/class/backlight /sys/class/graphics /dev/fb* /dev/dri 2>&1
+cat /sys/class/graphics/fb0/virtual_size /sys/class/graphics/fb0/bits_per_pixel /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness 2>&1
+for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf '\n\n   Linux 6.12 on the Nokia E72\n   Hello from Linux\n\n' > /dev/tty1; echo ok
+a=0x20031900; i=0; while [ $i -lt 128 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20033400; i=0; while [ $i -lt 80 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20032f00; i=0; while [ $i -lt 192 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20032800; i=0; while [ $i -lt 32 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+cat /proc/interrupts; cat /proc/iomem; free
+dmesg | tail -15
+uptime

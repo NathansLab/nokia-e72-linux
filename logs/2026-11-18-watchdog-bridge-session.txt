@@ -1,0 +1,400 @@
+### [  3.0s] uptime; cat /proc/cmdline
+uptime; cat /proc/cmdline
+ 00:00:11 up 0 min,  0 users,  load average: 0.07, 0.01, 0.00
+earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+e6:/# 
+### [  4.3s] dmesg | grep -iE 'swd|btrace|isah'
+dmesg | grep -iE 'swd|btrace|isah'
+[    0.000000] rapuyama-swd: ISASW build E72 fw 091.004
+[    0.000000] rapuyama-swd: keep c80088f4 pa 100188f4 below the kernel
+[    0.000000] rapuyama-swd: keep 80108098 pa 10a08098 below the kernel
+[    0.000000] rapuyama-swd: keep 80109f20 pa 10a09f20 below the kernel
+[    0.000000] rapuyama-swd: keep 800a13fc pa 109a13fc below the kernel
+[    0.000000] rapuyama-swd: keep 80066b28 pa 10966b28 below the kernel
+[    0.000000] rapuyama-swd: keep c0030000 pa 10009000 below the kernel
+[    0.000000] rapuyama-swd: keep c1003000 pa 10003000 below the kernel
+[    0.000000] rapuyama-swd: keep c8001b1c pa 10011b1c below the kernel
+[    0.000000] rapuyama-swd: BTrace filter c8001b1c pa 10011b1c cleared
+[    0.000000] rapuyama-swd: keep fc201ba0 pa 100c1ba0 below the kernel
+[    0.000000] rapuyama-swd: keep fc201b40 pa 100c1b40 below the kernel
+[    0.000000] rapuyama-swd: keep fc201b40 pa 100c1b40 below the kernel
+[    0.000000] rapuyama-swd: keep fc22a6c0 pa 100d46c0 below the kernel
+[    0.000000] rapuyama-swd: protected app table cb294000
+[    0.000000] rapuyama-swd: keep cb294000 pa 101c4000 below the kernel
+[    0.000000] rapuyama-swd: PA_SWD record 4 off 32b0 len 23d0
+[    0.000000] rapuyama-swd: keep cb297000 pa 101c7000 below the kernel
+[    0.000000] rapuyama-swd: keep cb298000 pa 101c8000 below the kernel
+[    0.000000] rapuyama-swd: keep cb299000 pa 101c9000 below the kernel
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.048645] rapuyama: isah v2 ttbr0=14c04018 ttbr1=10000018 ttbcr=00000001 dacr=00000001 ctx=20ee3b75 sctlr=30e5387d prrr=000aa8a4 nmrr=a840a840
+[    1.048797] rapuyama: isah cb[0]=00000000 pa=00000000
+[    1.048858] rapuyama: isah cb[1]=00000000 pa=00000000
+[    1.048919] rapuyama: isah cb[2]=00000000 pa=00000000
+[    1.048980] rapuyama: isah cb[3]=00000000 pa=00000000
+[    1.049011] rapuyama: isah cb[4]=00000000 pa=00000000
+[    1.049072] rapuyama: isah cb[5]=00000000 pa=00000000
+[    1.049133] rapuyama: isah obj=00000000 pa=00000000
+[    1.049194] rapuyama: isah obj+00: c6300000 100dd001 c6400000 100dd401 c6500000 100dd801 c6600000 100ddc01
+[    1.049346] rapuyama: isah obj+20: c6800000 100da401 c6900000 100da801 c6a00000 100dac01 c6b00000 100da001
+[    1.049438] rapuyama: isah obj+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.049560] rapuyama: isah obj+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.049652] rapuyama: isah obj+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.049743] rapuyama: isah obj+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.049835] rapuyama: isah obj+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.049926] rapuyama: isah obj+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050018] rapuyama: isah sisa+00: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050140] rapuyama: isah sisa+20: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050231] rapuyama: isah sisa+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050354] rapuyama: isah sisa+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050445] rapuyama: isah sisa+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050537] rapuyama: isah sisa+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050659] rapuyama: isah sisa+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050750] rapuyama: isah sisa+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050842] rapuyama: isah superpage=00000000 machinedata=00000000
+[    1.050903] rapuyama: isah md+00: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.050994] rapuyama: isah md+20: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051086] rapuyama: isah md+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051177] rapuyama: isah md+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051300] rapuyama: isah md+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051422] rapuyama: isah md+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051513] rapuyama: isah md+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.051605] rapuyama: isah md+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### [  5.5s] for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf '\n\n  Linux 6.12 auf dem Nokia E72\n  Test: Secure-Watchdog-Bruecke\n  Bitte einfach liegen lassen.\n\n' > /dev/tty1; echo ok
+for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf
+ '\n\n  Linux 6.12 auf dem Nokia E72\n  Test: Secure-Watchdog-Bruecke\n  Bitte e
+infach liegen lassen.\n\n' > /dev/tty1; echo ok
+ok
+e6:/# 
+### [  6.7s] dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.12.0 (root@666cf71d51e9) (arm-linux-gnueabi-gcc (Debian 12.2.0-14) 12.2.0, GNU ld (GNU Binutils for Debian) 2.40) #4 Wed Nov 18 03:31:10 UTC 2026
+[    0.000000] CPU: ARMv6-compatible processor [410fb764] revision 4 (ARMv7), cr=00e5387d
+[    0.000000] CPU: VIPT aliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Nokia E72 RM-530 (RapuYama)
+[    0.000000] earlycon: ramcon0 at MMIO 0x17000000 (options '')
+[    0.000000] printk: legacy bootconsole [ramcon0] enabled
+[    0.000000] printk: debug: skip boot console de-registration.
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writeback
+[    0.000000] rapuyama-swd: ISASW build E72 fw 091.004
+[    0.000000] rapuyama-swd: keep c80088f4 pa 100188f4 below the kernel
+[    0.000000] rapuyama-swd: keep 80108098 pa 10a08098 below the kernel
+[    0.000000] rapuyama-swd: keep 80109f20 pa 10a09f20 below the kernel
+[    0.000000] rapuyama-swd: keep 800a13fc pa 109a13fc below the kernel
+[    0.000000] rapuyama-swd: keep 80066b28 pa 10966b28 below the kernel
+[    0.000000] rapuyama-swd: keep c0030000 pa 10009000 below the kernel
+[    0.000000] rapuyama-swd: keep c1003000 pa 10003000 below the kernel
+[    0.000000] rapuyama-swd: keep c8001b1c pa 10011b1c below the kernel
+[    0.000000] rapuyama-swd: BTrace filter c8001b1c pa 10011b1c cleared
+[    0.000000] rapuyama-swd: keep fc201ba0 pa 100c1ba0 below the kernel
+[    0.000000] rapuyama-swd: keep fc201b40 pa 100c1b40 below the kernel
+[    0.000000] rapuyama-swd: keep fc201b40 pa 100c1b40 below the kernel
+[    0.000000] rapuyama-swd: keep fc22a6c0 pa 100d46c0 below the kernel
+[    0.000000] rapuyama-swd: protected app table cb294000
+[    0.000000] rapuyama-swd: keep cb294000 pa 101c4000 below the kernel
+[    0.000000] rapuyama-swd: PA_SWD record 4 off 32b0 len 23d0
+[    0.000000] rapuyama-swd: keep cb297000 pa 101c7000 below the kernel
+[    0.000000] rapuyama-swd: keep cb298000 pa 101c8000 below the kernel
+[    0.000000] rapuyama-swd: keep cb299000 pa 101c9000 below the kernel
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] On node 0, zone Normal: 512 pages in unavailable ranges
+[    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+[    0.000000] pcpu-alloc: [0] 0 
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    0.000000] Unknown kernel command line parameters "pd_ignore_unused cma=0", will be passed to user space.
+[    0.000000] Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 23040
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rapuyama-intc: probe, parent=00000000
+[    0.000000] rapuyama-intc: domain=(ptrval) ready, handler installed
+[    0.000000] L2C-220 cache controller enabled, 8 ways, 256 kB
+[    0.000000] L2C-220: CACHE_ID 0x41000486, AUX_CTRL 0x02050249
+[    0.000000] sched_clock: 32 bits at 33kHz, resolution 30517ns, wraps every 65535999984741ns
+[    0.000122] clocksource: rapuyama-e5-fc: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 58327039986419 ns
+[    0.000274] rapuyama-e5-timer: 1 kHz base / 1000 Hz Linux tick (irq 16), counter 32768 Hz
+[    0.000793] Console: colour dummy device 80x30
+[    0.000946] Calibrating delay loop... 
+[    0.001281] rapuyama-intc: first irq hwirq=35
+[    0.019287] 444.41 BogoMIPS (lpj=222208)
+[    0.019378] CPU: Testing write buffer coherency: ok
+[    0.019592] pid_max: default: 32768 minimum: 301
+[    0.020080] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.020172] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.027496] Setting up static identity map for 0x11700000 - 0x11700038
+[    0.028503] dyndbg: Ignore empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build
+[    0.028686] Memory: 77524K/92160K available (7168K kernel code, 584K rwdata, 2056K rodata, 1024K init, 239K bss, 14216K reserved, 0K cma-reserved)
+[    0.029815] devtmpfs: initialized
+[    0.034820] VFP support v0.3: implementor 41 architecture 1 part 20 variant b rev 5
+[    0.035461] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    0.035614] futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+[    0.035919] pinctrl core: initialized pinctrl subsystem
+[    0.040222] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.042510] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.045745] No ATAGs?
+[    0.056152] raid6: skipped pq benchmark and selected int32x8
+[    0.056243] raid6: using intx1 recovery algorithm
+[    0.057830] usb_phy_generic usb-phy: dummy supplies not allowed for exclusive requests (id=vbus)
+[    0.058746] pps_core: LinuxPPS API ver. 1 registered
+[    0.058807] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <email removed>
+[    0.058959] PTP clock support registered
+[    0.059417] rapuyama: early soc watchdog feeding stopped, driver took over (stall detector 5 s, ramcon heartbeat 10 s)
+[    0.059997] input: Nokia E5 power key as /devices/platform/soc/20030700.watchdog/input/input0
+[    0.060119] rapuyama-wdt 20030700.watchdog: pmic + soc watchdog, 48 s, power key (taken 0, missed 0)
+[    0.065887] clocksource: Switched to clocksource rapuyama-e5-fc
+[    0.094818] NET: Registered PF_INET protocol family
+[    0.095642] IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.098114] tcp_listen_portaddr_hash hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.098266] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.098449] TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.098571] TCP bind hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.098846] TCP: Hash tables configured (established 1024 bind 1024)
+[    0.099182] UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.099334] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.099792] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.112731] Initialise system trusted keyrings
+[    0.114562] workingset: timestamp_bits=30 max_order=15 bucket_order=0
+[    0.993621] xor: measuring software checksum speed
+[    0.999481]    arm4regs        :   578 MB/sec
+[    1.011230]    8regs           :   282 MB/sec
+[    1.022003]    32regs          :   307 MB/sec
+[    1.022064] xor: using function: arm4regs (578 MB/sec)
+[    1.022186] Key type asymmetric registered
+[    1.022247] Asymmetric key parser 'x509' registered
+[    1.022521] io scheduler mq-deadline registered
+[    1.022583] io scheduler kyber registered
+[    1.022735] io scheduler bfq registered
+[    1.029418] zram: Added device: zram0
+[    1.031127] musb-hdrc musb-hdrc.0.auto: otg wrapper rev 0x40, devctl 0x98, power 0x20
+[    1.033294] using host ethernet address: 02:e7:20:00:00:01
+[    1.033355] using self ethernet address: 02:e7:20:00:00:02
+[    1.035583] g_cdc gadget.0: HOST MAC 02:e7:20:00:00:01
+[    1.035736] g_cdc gadget.0: MAC 02:e7:20:00:00:02
+[    1.036041] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[    1.036132] g_cdc gadget.0: g_cdc ready
+[    1.037445] i2c_dev: i2c /dev entries driver
+[    1.039428] NET: Registered PF_INET6 protocol family
+[    1.045166] Segment Routing with IPv6
+[    1.045501] In-situ OAM (IOAM) with IPv6
+[    1.045806] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    1.047882] NET: Registered PF_PACKET protocol family
+[    1.048645] rapuyama: isah v2 ttbr0=14c04018 ttbr1=10000018 ttbcr=00000001 dacr=00000001 ctx=20ee3b75 sctlr=30e5387d prrr=000aa8a4 nmrr=a840a840
+[    1.050842] rapuyama: isah superpage=00000000 machinedata=00000000
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    1.063751] Loading compiled-in X.509 certificates
+[    1.081787] Btrfs loaded, zoned=no, fsverity=no
+[    1.095153] rapuyama-e5-display 20025800.display: dma completion on irq 18
+[    1.122467] rapuyama-e5-display 20025800.display: dma done: dispc irqstatus 0x81 control 0x8b08
+[    1.122589] rapuyama-e5-display 20025800.display: full frame push 27221 us (dma, busy_poll 1)
+[    1.125488] [drm] Initialized rapuyama-e5 1.0.0 for 20025800.display on minor 0
+[    1.174957] Console: switching to colour frame buffer device 40x30
+[    1.219940] rapuyama-e5-display 20025800.display: [drm] fb0: rapuyama-e5drmf frame buffer device
+[    1.220214] rapuyama-e5-display 20025800.display: 320x240 xrgb8888 (buffer xrgb8888), rfbi cpu path + dispc dma (irq)
+[    1.221679] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    1.230255] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    1.236328] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    1.236450] clk: Not disabling unused clocks
+[    1.236846] platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    1.236968] cfg80211: failed to load regulatory.db
+[    1.237274] Warning: unable to open an initial console.
+[    1.246887] Freeing unused kernel image (initmem) memory: 1024K
+[    1.247467] Run /init as init process
+[    1.247528]   with arguments:
+[    1.247558]     /init
+[    1.247589]     pd_ignore_unused
+[    1.247619]   with environment:
+[    1.247680]     HOME=/
+[    1.247711]     TERM=linux
+[    1.247741]     cma=0
+[    1.438995] e6: init.sh v8 (usb shell + weston, tty1 shell as fallback)
+[    1.450531] zram0: detected capacity change from 0 to 262144
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+[    8.382385] random: crng init done
+[    8.389404] Adding 131068k swap on /dev/zram0.  Priority:100 extents:1 across:131068k SS
+[    8.405120] e6: swap: /dev/zram0 131068 kB, 
+[    8.430236] e6: ttyGS0 is there, waiting for the pc to enumerate us
+[    8.450164] e6: usb configured, shell on ttyGS0
+[    8.460235] e6: shell on tty1 (screen + keypad)
+e6:/# 
+### [  8.0s] ifconfig -a 2>&1; ls /sys/class/net
+ifconfig -a 2>&1; ls /sys/class/net
+lo        Link encap:Local Loopback  
+          LOOPBACK  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+sit0      Link encap:IPv6-in-IPv4  
+          NOARP  MTU:1480  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+usb0      Link encap:Ethernet  HWaddr 02:E7:20:00:00:02  
+          BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+[1;36mlo[m    [1;36msit0[m  [1;36musb0[m
+e6:/# 
+### [  9.2s] zcat /proc/config.gz | grep -E 'KEXEC|STRICT_DEVMEM'
+zcat /proc/config.gz | grep -E 'KEXEC|STRICT_DEVMEM'
+CONFIG_KEXEC_CORE=y
+CONFIG_KEXEC=y
+CONFIG_ARCH_SUPPORTS_KEXEC=y
+# CONFIG_STRICT_DEVMEM is not set
+e6:/# 
+### [ 10.4s] cat /proc/interrupts; free
+cat /proc/interrupts; free
+           CPU0       
+ 16:      19145  rapuyama-intc  35 Edge      rapuyama-e5-tick
+ 17:       1070  rapuyama-intc 183 Edge      musb-hdrc.0.auto
+ 18:         94  rapuyama-intc 146 Edge      e5-display
+Err:          0
+              total        used        free      shared  buff/cache   available
+Mem:          78968       10412       67040        1512        1516       65628
+Swap:        131068           0      131068
+e6:/# 
+### fertig nach 10.4s
+### watch +2s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:00:30 up 0 min,  0 users,  load average: 0.05, 0.01, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +33s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:01:02 up 1 min,  0 users,  load average: 0.02, 0.01, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +65s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:01:33 up 1 min,  0 users,  load average: 0.01, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +96s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:02:05 up 2 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +128s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:02:36 up 2 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +159s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:03:08 up 3 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +191s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:03:39 up 3 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +222s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:04:11 up 4 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +254s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:04:43 up 4 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +285s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:05:14 up 5 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +317s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:05:46 up 5 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +348s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:06:17 up 6 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +380s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:06:49 up 6 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +411s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:07:20 up 7 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +443s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:07:52 up 7 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +474s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:08:23 up 8 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +506s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:08:55 up 8 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### watch +538s
+uptime; dmesg | grep -iE 'swd' | tail -3
+ 00:09:26 up 9 min,  0 users,  load average: 0.00, 0.00, 0.00
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=1 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    1.053283] rapuyama-swd: PA_SWD 0x1f ready (E72 fw 091.004), token 240 guest stack c68e9e68
+[    6.118560] rapuyama-swd: call 1 stage 60 transport 1 result 1 timeout 240 token 240
+e6:/# 
+### LAEUFT NOCH nach 9 min

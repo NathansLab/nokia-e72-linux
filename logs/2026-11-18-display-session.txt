@@ -1,0 +1,665 @@
+### [  3.0s] uptime; cat /proc/cmdline
+uptime; cat /proc/cmdline
+ 00:00:36 up 0 min,  0 users,  load average: 0.04, 0.01, 0.00
+earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=0 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+e6:/# 
+### [  4.3s] dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.12.0 (root@21149e501f0c) (arm-linux-gnueabi-gcc (Debian 12.2.0-14) 12.2.0, GNU ld (GNU Binutils for Debian) 2.40) #2 Wed Nov 18 03:03:27 UTC 2026
+[    0.000000] CPU: ARMv6-compatible processor [410fb764] revision 4 (ARMv7), cr=00e5387d
+[    0.000000] CPU: VIPT aliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Nokia E72 RM-530 (RapuYama)
+[    0.000000] earlycon: ramcon0 at MMIO 0x17000000 (options '')
+[    0.000000] printk: legacy bootconsole [ramcon0] enabled
+[    0.000000] printk: debug: skip boot console de-registration.
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writeback
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] On node 0, zone Normal: 512 pages in unavailable ranges
+[    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+[    0.000000] pcpu-alloc: [0] 0 
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=0 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    0.000000] Unknown kernel command line parameters "pd_ignore_unused cma=0", will be passed to user space.
+[    0.000000] Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 23040
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rapuyama-intc: probe, parent=00000000
+[    0.000000] rapuyama-intc: domain=(ptrval) ready, handler installed
+[    0.000000] L2C-220 cache controller enabled, 8 ways, 256 kB
+[    0.000000] L2C-220: CACHE_ID 0x41000486, AUX_CTRL 0x02050249
+[    0.000000] sched_clock: 32 bits at 33kHz, resolution 30517ns, wraps every 65535999984741ns
+[    0.000122] clocksource: rapuyama-e5-fc: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 58327039986419 ns
+[    0.000274] rapuyama-e5-timer: 1 kHz base / 1000 Hz Linux tick (irq 16), counter 32768 Hz
+[    0.000762] Console: colour dummy device 80x30
+[    0.000915] Calibrating delay loop... 
+[    0.001281] rapuyama-intc: first irq hwirq=35
+[    0.019287] 444.41 BogoMIPS (lpj=222208)
+[    0.019348] CPU: Testing write buffer coherency: ok
+[    0.019592] pid_max: default: 32768 minimum: 301
+[    0.020050] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.020141] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.026489] Setting up static identity map for 0x11700000 - 0x11700038
+[    0.027160] dyndbg: Ignore empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build
+[    0.027343] Memory: 77532K/92160K available (7168K kernel code, 583K rwdata, 2028K rodata, 1024K init, 236K bss, 14208K reserved, 0K cma-reserved)
+[    0.028472] devtmpfs: initialized
+[    0.032775] VFP support v0.3: implementor 41 architecture 1 part 20 variant b rev 5
+[    0.033386] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    0.033508] futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+[    0.033813] pinctrl core: initialized pinctrl subsystem
+[    0.038177] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.040466] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.053161] raid6: skipped pq benchmark and selected int32x8
+[    0.053253] raid6: using intx1 recovery algorithm
+[    0.054901] usb_phy_generic usb-phy: dummy supplies not allowed for exclusive requests (id=vbus)
+[    0.055816] pps_core: LinuxPPS API ver. 1 registered
+[    0.055877] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <email removed>
+[    0.056030] PTP clock support registered
+[    0.056488] rapuyama: early soc watchdog feeding stopped, driver took over (stall detector 5 s, ramcon heartbeat 10 s)
+[    0.057067] input: Nokia E5 power key as /devices/platform/soc/20030700.watchdog/input/input0
+[    0.057189] rapuyama-wdt 20030700.watchdog: pmic + soc watchdog, 48 s, power key (taken 0, missed 0)
+[    0.062988] clocksource: Switched to clocksource rapuyama-e5-fc
+[    0.091796] NET: Registered PF_INET protocol family
+[    0.092620] IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.095092] tcp_listen_portaddr_hash hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.095245] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.095428] TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.095550] TCP bind hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.095825] TCP: Hash tables configured (established 1024 bind 1024)
+[    0.096160] UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.096313] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.096771] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.109710] Initialise system trusted keyrings
+[    0.110473] workingset: timestamp_bits=30 max_order=15 bucket_order=0
+[    0.988922] xor: measuring software checksum speed
+[    0.994781]    arm4regs        :   578 MB/sec
+[    1.006530]    8regs           :   282 MB/sec
+[    1.017303]    32regs          :   307 MB/sec
+[    1.017364] xor: using function: arm4regs (578 MB/sec)
+[    1.017486] Key type asymmetric registered
+[    1.017547] Asymmetric key parser 'x509' registered
+[    1.017791] io scheduler mq-deadline registered
+[    1.017852] io scheduler kyber registered
+[    1.018005] io scheduler bfq registered
+[    1.024658] zram: Added device: zram0
+[    1.026519] musb-hdrc musb-hdrc.0.auto: otg wrapper rev 0x40, devctl 0x98, power 0x20
+[    1.028625] using host ethernet address: 02:e7:20:00:00:01
+[    1.028656] using self ethernet address: 02:e7:20:00:00:02
+[    1.030792] g_cdc gadget.0: HOST MAC 02:e7:20:00:00:01
+[    1.030944] g_cdc gadget.0: MAC 02:e7:20:00:00:02
+[    1.031249] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[    1.031372] g_cdc gadget.0: g_cdc ready
+[    1.032653] i2c_dev: i2c /dev entries driver
+[    1.034667] NET: Registered PF_INET6 protocol family
+[    1.040161] Segment Routing with IPv6
+[    1.040527] In-situ OAM (IOAM) with IPv6
+[    1.040802] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    1.042907] NET: Registered PF_PACKET protocol family
+[    1.043701] rapuyama: isah v2 ttbr0=1423e018 ttbr1=10000018 ttbcr=00000001 dacr=00000001 ctx=20b3e95d sctlr=30e5387d prrr=000aa8a4 nmrr=a840a840
+[    1.045867] rapuyama: isah superpage=00000000 machinedata=00000000
+[    1.058135] Loading compiled-in X.509 certificates
+[    1.076354] Btrfs loaded, zoned=no, fsverity=no
+[    1.089630] rapuyama-e5-display 20025800.display: dma completion on irq 18
+[    1.116851] rapuyama-e5-display 20025800.display: dma done: dispc irqstatus 0x81 control 0x8b08
+[    1.116943] rapuyama-e5-display 20025800.display: full frame push 27191 us (dma, busy_poll 1)
+[    1.119842] [drm] Initialized rapuyama-e5 1.0.0 for 20025800.display on minor 0
+[    1.168731] Console: switching to colour frame buffer device 40x30
+[    1.213165] rapuyama-e5-display 20025800.display: [drm] fb0: rapuyama-e5drmf frame buffer device
+[    1.213500] rapuyama-e5-display 20025800.display: 320x240 xrgb8888 (buffer xrgb8888), rfbi cpu path + dispc dma (irq)
+[    1.214813] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    1.223510] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    1.229461] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    1.229583] clk: Not disabling unused clocks
+[    1.229827] Warning: unable to open an initial console.
+[    1.238433] Freeing unused kernel image (initmem) memory: 1024K
+[    1.238861] platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    1.238952] cfg80211: failed to load regulatory.db
+[    1.239593] Run /init as init process
+[    1.239654]   with arguments:
+[    1.239715]     /init
+[    1.239746]     pd_ignore_unused
+[    1.239776]   with environment:
+[    1.239837]     HOME=/
+[    1.239868]     TERM=linux
+[    1.239898]     cma=0
+[    1.430603] e6: init.sh v8 (usb shell + weston, tty1 shell as fallback)
+[    1.442047] zram0: detected capacity change from 0 to 262144
+[    8.235351] random: crng init done
+[    8.242401] Adding 131068k swap on /dev/zram0.  Priority:100 extents:1 across:131068k SS
+[    8.258117] e6: swap: /dev/zram0 131068 kB, 
+[    8.281890] e6: ttyGS0 is there, waiting for the pc to enumerate us
+[    8.300872] e6: usb configured, shell on ttyGS0
+[    8.311859] e6: shell on tty1 (screen + keypad)
+e6:/# 
+### [  5.5s] ls /sys/class/drm /sys/class/backlight /sys/class/graphics /dev/fb* /dev/dri 2>&1
+ls /sys/class/drm /sys/class/backlight /sys/class/graphics /dev/fb* /dev/d
+ri 2>&1
+[1;35m/dev/fb0[m
+
+/dev/dri:
+[1;35mcard0[m
+
+/sys/class/backlight:
+[1;36mpanel[m
+
+/sys/class/drm:
+[1;36mcard0[m        [1;36mcard0-DPI-1[m  [0;0mversion[m
+
+/sys/class/graphics:
+[1;36mfb0[m    [1;36mfbcon[m
+e6:/# 
+### [  6.7s] cat /sys/class/graphics/fb0/virtual_size /sys/class/graphics/fb0/bits_per_pixel /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness 2>&1
+cat /sys/class/graphics/fb0/virtual_size /sys/class/graphics/fb0/bits_per_
+pixel /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness 2>
+&1
+320,240
+32
+255
+255
+e6:/# 
+### [  7.9s] for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf '\n\n   Linux 6.12 auf dem Nokia E72\n   Hallo [name removed]!\n\n' > /dev/tty1; echo ok
+for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf
+ '\n\n   Linux 6.12 auf dem Nokia E72\n   Hallo [name removed]!\n\n' > /dev/tty1; echo o
+k
+ok
+e6:/# 
+### [  9.8s] a=0x20031900; i=0; while [ $i -lt 128 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20031900; i=0; while [ $i -lt 128 ]; do printf '%08x %s\n' $((a+i*4)) 
+$(devmem $((a+i*4)) 32); i=$((i+1)); done
+20031900 0x24442422
+20031904 0x00000000
+20031908 0x00000000
+2003190c 0x00000000
+20031910 0x00000000
+20031914 0x00000000
+20031918 0x00000000
+2003191c 0x00000000
+20031920 0x22011110
+20031924 0x00000000
+20031928 0x00000000
+2003192c 0x00000000
+20031930 0x00211103
+20031934 0x00000000
+20031938 0x00000000
+2003193c 0x00000000
+20031940 0x33333300
+20031944 0x00000000
+20031948 0x00000000
+2003194c 0x00000000
+20031950 0x00001033
+20031954 0x00000000
+20031958 0x00000000
+2003195c 0x00000000
+20031960 0x00000000
+20031964 0x00000000
+20031968 0x00000000
+2003196c 0x00000000
+20031970 0x000002C0
+20031974 0x00000000
+20031978 0x00000000
+2003197c 0x00000000
+20031980 0x00000000
+20031984 0x00000000
+20031988 0x00000000
+2003198c 0x00000000
+20031990 0x78004200
+20031994 0x00000000
+20031998 0x00000000
+2003199c 0x00000000
+200319a0 0x00048001
+200319a4 0x00000000
+200319a8 0x00000000
+200319ac 0x00000000
+200319b0 0x00080800
+200319b4 0x00000000
+200319b8 0x00000000
+200319bc 0x00000000
+200319c0 0xF0000100
+200319c4 0x00000000
+200319c8 0x00000000
+200319cc 0x00000000
+200319d0 0x38020001
+200319d4 0x00000000
+200319d8 0x00000000
+200319dc 0x00000000
+200319e0 0x00000001
+200319e4 0x00000000
+200319e8 0x00000000
+200319ec 0x00000000
+200319f0 0x87F095FF
+200319f4 0x00000000
+200319f8 0x00000000
+200319fc 0x00000000
+20031a00 0x808377DE
+20031a04 0x00000000
+20031a08 0x00000000
+20031a0c 0x00000000
+20031a10 0x0022229F
+20031a14 0x00000000
+20031a18 0x00000000
+20031a1c 0x00000000
+20031a20 0x0FFC0000
+20031a24 0x00000000
+20031a28 0x00000000
+20031a2c 0x00000000
+20031a30 0x000001FE
+20031a34 0x00000000
+20031a38 0x00000000
+20031a3c 0x00000000
+20031a40 0xFFFFFFFF
+20031a44 0xFFFFFFFF
+20031a48 0xFFFFFFFF
+20031a4c 0xFFFFFFFF
+20031a50 0xF80FFA00
+20031a54 0x00000000
+20031a58 0x00000000
+20031a5c 0x00000000
+20031a60 0x7F181BA1
+20031a64 0x00000000
+20031a68 0x00000000
+20031a6c 0x00000000
+20031a70 0x00CBFD60
+20031a74 0x00000000
+20031a78 0x00000000
+20031a7c 0x00000000
+20031a80 0x0403FFFF
+20031a84 0x00000000
+20031a88 0x00000000
+20031a8c 0x00000000
+20031a90 0x00000600
+20031a94 0x00000000
+20031a98 0x00000000
+20031a9c 0x00000000
+20031aa0 0xFFFFFFFF
+20031aa4 0xFFFFFFFF
+20031aa8 0xFFFFFFFF
+20031aac 0xFFFFFFFF
+20031ab0 0x00000000
+20031ab4 0x00000000
+20031ab8 0x00000000
+20031abc 0x00000000
+20031ac0 0xFFFFFFFF
+20031ac4 0xFFFFFFFF
+20031ac8 0xFFFFFFFF
+20031acc 0xFFFFFFFF
+20031ad0 0xFFFFFFFF
+20031ad4 0xFFFFFFFF
+20031ad8 0xFFFFFFFF
+20031adc 0xFFFFFFFF
+20031ae0 0xFFFFFFFF
+20031ae4 0xFFFFFFFF
+20031ae8 0xFFFFFFFF
+20031aec 0xFFFFFFFF
+20031af0 0xFFFFFFFF
+20031af4 0xFFFFFFFF
+20031af8 0xFFFFFFFF
+20031afc 0xFFFFFFFF
+e6:/# 
+### [ 11.3s] a=0x20033400; i=0; while [ $i -lt 80 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20033400; i=0; while [ $i -lt 80 ]; do printf '%08x %s\n' $((a+i*4)) $
+(devmem $((a+i*4)) 32); i=$((i+1)); done
+20033400 0x55555555
+20033404 0x00000001
+20033408 0xFFC0C21E
+2003340c 0x002F2DE1
+20033410 0x00000000
+20033414 0x00000000
+20033418 0xF86FEFF1
+2003341c 0x00000000
+20033420 0x00000000
+20033424 0x02601000
+20033428 0x00000000
+2003342c 0x00000000
+20033430 0x00501000
+20033434 0x00000000
+20033438 0x00000000
+2003343c 0x00000015
+20033440 0x55555555
+20033444 0x00000001
+20033448 0x0007805D
+2003344c 0xFFF87CA2
+20033450 0x00000000
+20033454 0x00000000
+20033458 0xFFF97CA7
+2003345c 0x00000000
+20033460 0x00000000
+20033464 0x00000300
+20033468 0x00000000
+2003346c 0x00000000
+20033470 0x00000300
+20033474 0x00000000
+20033478 0x00000000
+2003347c 0x0000001F
+20033480 0x55555555
+20033484 0x00000001
+20033488 0x00088A1A
+2003348c 0x9CF775E5
+20033490 0x00000000
+20033494 0x00000000
+20033498 0xFFF77FE5
+2003349c 0x00000000
+200334a0 0x00000000
+200334a4 0x00000000
+200334a8 0x00000000
+200334ac 0x00000000
+200334b0 0x00000204
+200334b4 0x00000000
+200334b8 0x00000000
+200334bc 0x0000001F
+200334c0 0x55555555
+200334c4 0x00000001
+200334c8 0x00803EFF
+200334cc 0xFE7FC000
+200334d0 0x00000000
+200334d4 0x00000000
+200334d8 0xFE7FFE1F
+200334dc 0x00000000
+200334e0 0x00000000
+200334e4 0x01018100
+200334e8 0x00000000
+200334ec 0x00000000
+200334f0 0x00000000
+200334f4 0x00000000
+200334f8 0x00000000
+200334fc 0x0000001F
+20033500 0x55555555
+20033504 0x00000001
+20033508 0x00010060
+2003350c 0xFEFEFFDF
+20033510 0x00000000
+20033514 0x00000000
+20033518 0xFEFFFFFF
+2003351c 0x00000000
+20033520 0x00000000
+20033524 0x00000000
+20033528 0x00000000
+2003352c 0x00000000
+20033530 0x01000000
+20033534 0x00000000
+20033538 0x00000000
+2003353c 0x0000001F
+e6:/# 
+### [ 13.7s] a=0x20032f00; i=0; while [ $i -lt 192 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20032f00; i=0; while [ $i -lt 192 ]; do printf '%08x %s\n' $((a+i*4)) 
+$(devmem $((a+i*4)) 32); i=$((i+1)); done
+20032f00 0xFFFFFFFF
+20032f04 0xFFFFFFFF
+20032f08 0xFFFFFFFF
+20032f0c 0xFFFFFFFF
+20032f10 0xFFFFFFFF
+20032f14 0xFFFFFFFF
+20032f18 0xFFFFFFFF
+20032f1c 0xFFFFFFFF
+20032f20 0xFFFFFFFF
+20032f24 0xFFFFFFFF
+20032f28 0xFFFFFFFF
+20032f2c 0xFFFFFFFF
+20032f30 0xFFFFFFFF
+20032f34 0xFFFFFFFF
+20032f38 0xFFFFFFFF
+20032f3c 0xFFFFFFFF
+20032f40 0xFFFFFFFF
+20032f44 0xFFFFFFFF
+20032f48 0xFFFFFFFF
+20032f4c 0xFFFFFFFF
+20032f50 0xFFFFFFFF
+20032f54 0xFFFFFFFF
+20032f58 0xFFFFFFFF
+20032f5c 0xFFFFFFFF
+20032f60 0xFFFFFFFF
+20032f64 0xFFFFFFFF
+20032f68 0xFFFFFFFF
+20032f6c 0xFFFFFFFF
+20032f70 0xFFFFFFFF
+20032f74 0xFFFFFFFF
+20032f78 0xFFFFFFFF
+20032f7c 0xFFFFFFFF
+20032f80 0xFFFFFFFF
+20032f84 0xFFFFFFFF
+20032f88 0xFFFFFFFF
+20032f8c 0xFFFFFFFF
+20032f90 0xFFFFFFFF
+20032f94 0xFFFFFFFF
+20032f98 0xFFFFFFFF
+20032f9c 0xFFFFFFFF
+20032fa0 0xFFFFFFFF
+20032fa4 0xFFFFFFFF
+20032fa8 0xFFFFFFFF
+20032fac 0xFFFFFFFF
+20032fb0 0xFFFFFFFF
+20032fb4 0xFFFFFFFF
+20032fb8 0xFFFFFFFF
+20032fbc 0xFFFFFFFF
+20032fc0 0xFFFFFFFF
+20032fc4 0xFFFFFFFF
+20032fc8 0xFFFFFFFF
+20032fcc 0xFFFFFFFF
+20032fd0 0xFFFFFFFF
+20032fd4 0xFFFFFFFF
+20032fd8 0xFFFFFFFF
+20032fdc 0xFFFFFFFF
+20032fe0 0xFFFFFFFF
+20032fe4 0xFFFFFFFF
+20032fe8 0xFFFFFFFF
+20032fec 0xFFFFFFFF
+20032ff0 0xFFFFFFFF
+20032ff4 0xFFFFFFFF
+20032ff8 0xFFFFFFFF
+20032ffc 0xFFFFFFFF
+20033000 0x55555555
+20033004 0x00002491
+20033008 0x00001648
+2003300c 0x00000008
+20033010 0x00003494
+20033014 0x00000069
+20033018 0x00000002
+2003301c 0x00000001
+20033020 0xFFFFFFFF
+20033024 0x00000095
+20033028 0x00000095
+2003302c 0x00000490
+20033030 0xFFFFFFFF
+20033034 0x00006D00
+20033038 0x00000355
+2003303c 0x00000001
+20033040 0x00000000
+20033044 0x00000000
+20033048 0xFFFFFFFF
+2003304c 0xFFFFFFFF
+20033050 0xFFFFFFFF
+20033054 0xFFFFFFFF
+20033058 0xFFFFFFFF
+2003305c 0xFFFFFFFF
+20033060 0x55555555
+20033064 0x00000000
+20033068 0x01000000
+2003306c 0x00000001
+20033070 0x00000000
+20033074 0xFFFFFFFF
+20033078 0xFFFFFFFF
+2003307c 0xFFFFFFFF
+20033080 0x00004B1B
+20033084 0x00000000
+20033088 0x00000000
+2003308c 0x00000000
+20033090 0x00000229
+20033094 0x00000000
+20033098 0x00000000
+2003309c 0x00000000
+200330a0 0x0000C3F7
+200330a4 0x00000000
+200330a8 0x00000000
+200330ac 0x00000000
+200330b0 0x00007A9E
+200330b4 0x00000000
+200330b8 0x00000000
+200330bc 0x00000000
+200330c0 0x00000326
+200330c4 0x00000000
+200330c8 0x00000000
+200330cc 0x00000000
+200330d0 0x00001070
+200330d4 0x00000000
+200330d8 0x00000000
+200330dc 0x00000000
+200330e0 0x00000CAF
+200330e4 0x00000000
+200330e8 0x00000000
+200330ec 0x00000000
+200330f0 0x00000002
+200330f4 0x00000000
+200330f8 0x00000000
+200330fc 0x00000000
+20033100 0x0000010A
+20033104 0x00000000
+20033108 0x00000000
+2003310c 0x00000000
+20033110 0x000000C0
+20033114 0x00000000
+20033118 0x00000000
+2003311c 0x00000000
+20033120 0x0000331A
+20033124 0x00000000
+20033128 0x00000000
+2003312c 0x00000000
+20033130 0x0000563F
+20033134 0x00000000
+20033138 0x00000000
+2003313c 0x00000000
+20033140 0x00000218
+20033144 0x00000000
+20033148 0x00000000
+2003314c 0x00000000
+20033150 0x00005624
+20033154 0x00000000
+20033158 0x00000000
+2003315c 0x00000000
+20033160 0x00000007
+20033164 0x00000000
+20033168 0x00000000
+2003316c 0x00000000
+20033170 0x00007802
+20033174 0x00000000
+20033178 0x00000000
+2003317c 0x00000000
+20033180 0x000000FF
+20033184 0x00000000
+20033188 0x00000000
+2003318c 0x00000000
+20033190 0x00000208
+20033194 0x00000000
+20033198 0x00000000
+2003319c 0x00000000
+200331a0 0x0000000D
+200331a4 0x00000000
+200331a8 0x00000000
+200331ac 0x00000000
+200331b0 0x00008201
+200331b4 0x00000000
+200331b8 0x00000000
+200331bc 0x00000000
+200331c0 0x00000000
+200331c4 0x00000000
+200331c8 0x00000000
+200331cc 0x00000000
+200331d0 0x00000015
+200331d4 0x00000000
+200331d8 0x00000000
+200331dc 0x00000000
+200331e0 0x00000800
+200331e4 0x00000000
+200331e8 0x00000000
+200331ec 0x00000000
+200331f0 0x0000000B
+200331f4 0x00000000
+200331f8 0x00000000
+200331fc 0x00000000
+e6:/# 
+### [ 14.9s] a=0x20032800; i=0; while [ $i -lt 32 ]; do printf '%08x %s\n' $((a+i*4)) $(devmem $((a+i*4)) 32); i=$((i+1)); done
+a=0x20032800; i=0; while [ $i -lt 32 ]; do printf '%08x %s\n' $((a+i*4)) $
+(devmem $((a+i*4)) 32); i=$((i+1)); done
+20032800 0x0000210D
+20032804 0x00000000
+20032808 0x0000E624
+2003280c 0x00008804
+20032810 0x00000000
+20032814 0x00000000
+20032818 0x00000040
+2003281c 0x00000640
+20032820 0x00000000
+20032824 0x00000001
+20032828 0x00000000
+2003282c 0x00008080
+20032830 0x00000000
+20032834 0x00000020
+20032838 0x00002000
+2003283c 0x00000047
+20032840 0x00000000
+20032844 0x00000000
+20032848 0x00000000
+2003284c 0x00000000
+20032850 0x00000000
+20032854 0x00000000
+20032858 0x00000900
+2003285c 0x00000000
+20032860 0x00000000
+20032864 0x00000000
+20032868 0x00000001
+2003286c 0x00000000
+20032870 0x00000000
+20032874 0x00000000
+20032878 0x00000000
+2003287c 0x00000000
+e6:/# 
+### [ 16.1s] cat /proc/interrupts; cat /proc/iomem; free
+cat /proc/interrupts; cat /proc/iomem; free
+           CPU0       
+ 16:      49642  rapuyama-intc  35 Edge      rapuyama-e5-tick
+ 17:       2394  rapuyama-intc 183 Edge      musb-hdrc.0.auto
+ 18:        243  rapuyama-intc 146 Edge      e5-display
+Err:          0
+11600000-16ffffff : System RAM
+  11608000-120fffff : Kernel code
+  12200000-122ccfcf : Kernel data
+20024800-200249ff : 20025800.display display@20025800
+20025800-200258ff : 20025800.display display@20025800
+20030700-2003073f : 20030700.watchdog watchdog@20030700
+20033114-20033117 : 20030700.watchdog watchdog@20030700
+200336c4-200336c7 : 20030700.watchdog watchdog@20030700
+20038800-20038cff : usb@20038800
+  20038800-20038cff : musb-hdrc.0.auto usb@20038800
+              total        used        free      shared  buff/cache   available
+Mem:          78976       10308       67152        1512        1516       65740
+Swap:        131068           0      131068
+e6:/# 
+### [ 17.4s] dmesg | tail -15
+dmesg | tail -15
+[    1.239654]   with arguments:
+[    1.239715]     /init
+[    1.239746]     pd_ignore_unused
+[    1.239776]   with environment:
+[    1.239837]     HOME=/
+[    1.239868]     TERM=linux
+[    1.239898]     cma=0
+[    1.430603] e6: init.sh v8 (usb shell + weston, tty1 shell as fallback)
+[    1.442047] zram0: detected capacity change from 0 to 262144
+[    8.235351] random: crng init done
+[    8.242401] Adding 131068k swap on /dev/zram0.  Priority:100 extents:1 across:131068k SS
+[    8.258117] e6: swap: /dev/zram0 131068 kB, 
+[    8.281890] e6: ttyGS0 is there, waiting for the pc to enumerate us
+[    8.300872] e6: usb configured, shell on ttyGS0
+[    8.311859] e6: shell on tty1 (screen + keypad)
+e6:/# 
+### [ 18.6s] uptime
+uptime
+ 00:00:52 up 0 min,  0 users,  load average: 0.10, 0.02, 0.00
+e6:/# 
+### fertig nach 18.6s

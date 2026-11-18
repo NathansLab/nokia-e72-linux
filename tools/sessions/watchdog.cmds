@@ -1,0 +1,7 @@
+uptime; cat /proc/cmdline
+dmesg | grep -iE 'swd|btrace|isah'
+for b in /sys/class/backlight/*; do echo 255 > $b/brightness; done; printf '\n\n  Linux 6.12 on the Nokia E72\n  Test: secure watchdog bridge\n  Please leave the phone alone.\n\n' > /dev/tty1; echo ok
+dmesg | grep -vE 'isah (obj|sisa|md|cb)'
+ifconfig -a 2>&1; ls /sys/class/net
+zcat /proc/config.gz | grep -E 'KEXEC|STRICT_DEVMEM'
+cat /proc/interrupts; free

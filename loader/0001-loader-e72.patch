@@ -1,0 +1,533 @@
+diff --git a/linux/boot/tramp_scatter.S b/linux/boot/tramp_scatter.S
+new file mode 100644
+index 0000000..d925506
+--- /dev/null
++++ b/linux/boot/tramp_scatter.S
+@@ -0,0 +1,96 @@
++@ ONE-WAY scatter handoff (Nokia E72): like tramp_boot.S, but the kernel
++@ blob (Image at +0x8000, dtb at +dtboff) lies in single 4 kb pages anywhere in
++@ RAM. after the mmu is off this copies page i of the list to target+i*4k,
++@ then jumps into the kernel at target+0x8000 with r2 = target+dtboff.
++@ needed because a 128 mb E72 rarely has a free contiguous 16/32 mb block.
++@
++@ runs from an IDENTITY-mapped page (virt==phys). the booter guarantees that
++@ neither this page, the list nor any source page lies in [target, target+n*4k)
++@
++@ caller abi (booter driver, mmu on, svc):
++@ r0 = page list phys (n words, phys of each 4 kb source page)
++@ r1 = n (pages)
++@ r2 = target phys (2 mb aligned, kernel runs in place there)
++@ r3 = dtb offset in the blob
++@ registers only after the mmu goes off, no stack, no literal pool
++
++        .syntax unified
++        .arm
++        .section .text
++        .global tramp_scatter
++        .type tramp_scatter, %function
++tramp_scatter:
++        mov     r4, r0 @ list
++        mov     r5, r1 @ pages left
++        mov     r6, r2 @ target
++        mov     r7, r3 @ dtb offset
++
++        cpsid   if
++        ldr     r11, l2base @ L220 phys base, 0 = leave L2 alone
++
++        @ caches: "invalidate entire D cache" (c7,c6,0) is not allowed in the
++        @ non-secure world on this cpu (undefined -> symbian killed the thread,
++        @ v3). clean+invalidate (c7,c14,0) as tramp_boot.S does. the booter
++        @ cleans the D cache before it writes each page (uncached), so this
++        @ clean has no stale dirty line of ours left to push over a loaded page
++        mov     r2, #0
++        mcr     p15, 0, r2, c7, c14, 0 @ clean+invalidate D cache
++        mcr     p15, 0, r2, c7, c5, 0 @ invalidate I cache
++        mcr     p15, 0, r2, c7, c10, 4 @ DSB
++        mcr     p15, 0, r2, c7, c5, 4 @ ISB
++        mrc     p15, 0, r3, c1, c0, 0
++        bic     r3, r3, #0x5 @ mmu + D cache off
++        bic     r3, r3, #0x30000000 @ FA + TR off (see tramp_boot.S)
++        mcr     p15, 0, r3, c1, c0, 0 @ MMU OFF
++        mcr     p15, 0, r2, c7, c5, 4 @ ISB
++
++        ldr     r12, mark @ trace words in the ram log MB (survive the reset)
++        cmp     r12, #0
++        strne   r6, [r12] @ [0] = target: mmu is off
++
++        @ entry 0 = slot never loaded (gap/bss), entry == dst = page already
++        @ in place ("fixed"): both skipped, only outside pages get copied
++        mov     r8, r6 @ dst
++1:      cmp     r5, #0
++        beq     3f
++        sub     r5, r5, #1
++        ldr     r9, [r4], #4 @ src page
++        cmp     r9, #0
++        cmpne   r9, r8
++        addeq   r8, r8, #0x1000
++        beq     1b
++        add     r10, r9, #0x1000
++2:      ldmia   r9!, {r0, r1, r2, r3}
++        stmia   r8!, {r0, r1, r2, r3}
++        cmp     r9, r10
++        bne     2b
++        b       1b
++
++3:      cmp     r12, #0
++        strne   r8, [r12, #4] @ [1] = end of copy: all pages in place
++        @ the copy went past the L2 (D cache off = non-cacheable), so the L2
++        @ may hold symbian's old lines of the target. invalidate all ways; the
++        @ control register is left alone (secure-only write)
++        cmp     r11, #0
++        beq     4f
++        mov     r0, #0xff
++        str     r0, [r11, #0x77c] @ L220 invalidate by way, all ways
++5:      ldr     r0, [r11, #0x77c]
++        tst     r0, #0xff
++        bne     5b
++        mov     r0, #0
++        str     r0, [r11, #0x730] @ cache sync
++4:      cmp     r12, #0
++        strne   r11, [r12, #8] @ [2] = L2 base, written AFTER the invalidate
++        mov     r0, #0
++        mcr     p15, 0, r0, c7, c10, 4 @ DSB
++        mcr     p15, 0, r0, c7, c5, 0 @ invalidate I cache (new code)
++        mcr     p15, 0, r0, c7, c5, 4 @ ISB
++        mvn     r1, #0 @ machine type ~0 (dt)
++        add     r2, r6, r7 @ dtb phys
++        add     r4, r6, #0x8000 @ Image entry (TEXT_OFFSET low bits)
++        bx      r4
++        @ last two words, patched by the booter
++l2base: .word   0 @ KTrampScatterLen-8
++mark:   .word   0 @ KTrampScatterLen-4: trace address (RB_LOGPHYS+0xff000)
++        .size tramp_scatter, .-tramp_scatter
+diff --git a/linux/stage0/symbian-loader/boot_app.cpp b/linux/stage0/symbian-loader/boot_app.cpp
+index 63e97b1..45a3236 100644
+--- a/linux/stage0/symbian-loader/boot_app.cpp
++++ b/linux/stage0/symbian-loader/boot_app.cpp
+@@ -29,7 +29,9 @@ _LIT(KZImage, "E:\\Image");
+ #else
+ _LIT(KZImage, "E:\\zImage");
+ #endif
+-#if defined(RB_3G)
++#if defined(RB_E72)
++_LIT(KDtb, "E:\\e72.dtb");	// E72 (128 MB): own dtb, see linux/boot/e72.dts
++#elif defined(RB_3G)
+ _LIT(KDtb, "E:\\e5-3g.dtb");	// 3GLinuxE5: e5.dtb + e5.mobile=1 on the bootargs
+ #elif defined(RB_E5)
+ _LIT(KDtb, "E:\\e5.dtb");
+@@ -38,7 +40,12 @@ _LIT(KDtb, "E:\\e6.dtb");
+ #endif
+ 
+ const TUint32 KZOff=0x00008000; // TEXT_OFFSET
+-#ifdef RB_IMAGE_BOOT
++#if defined(RB_IMAGE_BOOT) && defined(RB_E72)
++// E72 (128 MB): a free 32 mb block below the ram log is rare ("no free ram
++// block -4"), the E72 Image ends at chunk+0xccd000 -> 16 mb, dtb at +15 mb
++const TUint32 KDtbOff=0x00f00000;
++const TUint32 KChunkSz=0x01000000;
++#elif defined(RB_IMAGE_BOOT)
+ // the Image runs in place up to ~chunk+0x1690000 (_end), the dtb right after
+ // the kernel keeps it reserved. 32 mb so the chunk can sit high enough
+ const TUint32 KDtbOff=0x01f00000;
+@@ -402,6 +409,9 @@ GLDEF_C TInt E32Main(){
+ 		FSCLOSE(); return KErrGeneral;
+ 	}
+ 	L(_L8("boot: started\n"));
++#ifdef RB_E72
++	User::InfoPrint(_L("LinuxE72 v3b"));
++#endif
+ 
+ #ifdef RB_IMAGE_BOOT
+ 	TInt check=CheckBootFile(KZImage, KDtbOff-KZOff);
+@@ -561,12 +571,15 @@ GLDEF_C TInt E32Main(){
+ 	// E5 handoff block for the PA_SWD bridge (phase A: only saved, linux does
+ 	// not use it yet). failure is logged, the boot goes on
+ 	{
+-		TBuf8<44> ib;
++		TBuf8<56> ib;
+ 		TInt ir=dev.SaveIsah(ib);
+ 		const TUint32* iw=(const TUint32*)ib.Ptr();
+-		if(ir==KErrNone && ib.Length()==44){
++		if(ir==KErrNone && ib.Length()>=44){
+ 			Lf(_L8("isah=0 ttbr0=%08x ttbr1=%08x ttbcr=%08x\n"), iw[0], iw[1], iw[2]);
+ 			for(TInt i=0; i<8; ++i){Lf(_L8("isah l1[%d]=%08x\n"), i, iw[3+i]);}
++#ifdef RB_E72
++			if(ib.Length()>=56){Lf(_L8("l2 id=%08x ctrl=%08x aux=%08x\n"), iw[11], iw[12], iw[13]);}
++#endif
+ 		}else{
+ 			Lf(_L8("isah=%d len=%d\n"), ir, ib.Length());
+ 		}
+@@ -580,6 +593,16 @@ GLDEF_C TInt E32Main(){
+ #endif
+ 	L(_L8("about-to-Boot (one-way)\n"));
+ 	gLog.Close(); FSCLOSE();
+-	dev.Boot(KZOff, KDtbOff, 0xFFFFFFFFu, 0); // never returns
++	TInt rb=dev.Boot(KZOff, KDtbOff, 0xFFFFFFFFu, 0); // returns only on error
++#ifdef RB_E72
++	// the handoff came back: say so instead of quitting silently
++	if(gFs.Connect()==KErrNone && gLog.Open(gFs, KLog, EFileWrite)==KErrNone){
++		TInt end=0; gLog.Seek(ESeekEnd, end);
++		Lf(_L8("Boot returned %d\n"), rb);
++		gLog.Close();
++	}
++	Fail(_L("handoff failed"), rb);
++#endif
++	(void)rb;
+ 	return KErrNone;
+ }
+\ No newline at end of file
+diff --git a/linux/stage0/symbian-loader/e5boot_ldd.cpp b/linux/stage0/symbian-loader/e5boot_ldd.cpp
+index b257d62..39718a6 100644
+--- a/linux/stage0/symbian-loader/e5boot_ldd.cpp
++++ b/linux/stage0/symbian-loader/e5boot_ldd.cpp
+@@ -61,14 +61,18 @@ static DPlatChunkHw* IdMapExec(TPhysAddr aP, TUint32& aIdx, TUint32& aOld){
+ // 5 dacr, 6 contextidr, 7 sctlr, 8 prrr, 9 nmrr, 0x20+2i/0x21+2i {va, L1 desc}
+ // of the 8 ISASW MBs, 0x400.. (byte 0x1000) the 16 kb kernel L1 (ttbr1),
+ // byte 0x5000+i*0x400 the 1 kb L2 table of MB i (zero if not a coarse table)
+-static const TUint32 KIsahPhys=0x1f0f1000u, KIsahSize=0x7000u, KIsahMagic=0x48415349u;
++static const TUint32 KIsahPhys=RB_LOGPHYS+0xf1000u, KIsahSize=0x7000u, KIsahMagic=0x48415349u;
+ // c6300000.. isasw code, c6800000.. data, c6b00000 secure pool (0x1ffe0000)
+ static const TUint32 KIsahMb[8]={0xc63u, 0xc64u, 0xc65u, 0xc66u, 0xc68u, 0xc69u, 0xc6au, 0xc6bu};
+ static TUint32 Cp15Ttbr1(){TUint32 v; asm volatile("mrc p15,0,%0,c2,c0,1":"=r"(v)); return v;}
+ 
+ class DE5BootChan : public DLogicalChannelBase{
+ 	public:
+-		DE5BootChan() : iBootChunk(NULL), iBootPhys(0), iBootVirt(0), iBootSize(0), iBootAlloc(0), iIsahChunk(NULL), iIsahClaimed(EFalse){}
++		DE5BootChan() : iBootChunk(NULL), iBootPhys(0), iBootVirt(0), iBootSize(0), iBootAlloc(0), iIsahChunk(NULL), iIsahClaimed(EFalse){
++#ifdef RB_E72
++			iListChunk=NULL; iListPhys=0; iList=NULL; iNPages=0; iHeld=NULL; iNHeld=0; iGot=0; iFixed=0; iL2Base=0;
++#endif
++		}
+ 		// a booter that quits after AllocBoot must give the block back
+ 		virtual ~DE5BootChan(){ReleaseBoot(); ReleaseIsah();}
+ 		// the handoff block stays mapped + claimed until the boot (symbian must
+@@ -81,7 +85,42 @@ class DE5BootChan : public DLogicalChannelBase{
+ 			if(iBootChunk){iBootChunk->Close(NULL); iBootChunk=NULL;}
+ 			if(iBootAlloc){Epoc::FreePhysicalRam(iBootPhys, iBootAlloc); iBootAlloc=0;}
+ 			iBootSize=0;
++#ifdef RB_E72
++			if(iList){
++				for(TUint32 i=0; i<iNPages; ++i){if(iList[i]){Epoc::FreePhysicalRam(iList[i], 0x1000);}}
++			}
++			if(iListChunk){iListChunk->Close(NULL); iListChunk=NULL;}
++			if(iListPhys){Epoc::FreePhysicalRam(iListPhys, (TInt)KE72ListBytes); iListPhys=0;}
++			iList=NULL; iNPages=0;
++			if(iHeld){
++				for(TUint32 i=0; i<iNHeld; ++i){Epoc::FreePhysicalRam(iHeld[i], 0x1000);}
++				Kern::Free(iHeld); iHeld=NULL;
++			}
++			iNHeld=0; iGot=0; iFixed=0;
++#endif
+ 		}
++#ifdef RB_E72
++		// scatter boot: the blob lives in single 4 kb pages, the list (phys of
++		// page i) in one contiguous uncached block; tramp_scatter copies it to
++		// KE72Target with the mmu off
++		static const TUint32 KE72Target=0x11600000u;
++		static const TUint32 KE72MaxPages=0x1000u; // 16 mb
++		static const TUint32 KE72ListBytes=KE72MaxPages*4;
++		DPlatChunkHw* iListChunk;
++		TPhysAddr iListPhys;
++		volatile TUint32* iList;
++		TUint32 iNPages;
++		TPhysAddr* iHeld;  // free target pages already taken by another slot
++		TUint32 iNHeld;
++		TUint32 iGot;      // slots backed (diagnostics)
++		TUint32 iFixed;    // of those already in place (no copy)
++		TUint32 iL2Base;   // L2 controller phys if recognised (SaveIsah), else 0
++		TPhysAddr GetSlot(TUint32 aSlot);
++		TPhysAddr AllocOutside(TUint32 aBytes, TInt aAlign);
++		TInt AllocScatter(TUint32 aSize, TAny* a2);
++		TInt LoadScatter(TUint32 aOff, const TUint8* aSrc, TUint32 aLen);
++		TInt BootScatter(TUint32 aDtbOff);
++#endif
+ 		DPlatChunkHw* iBootChunk;
+ 		TPhysAddr iBootPhys;
+ 		TLinAddr iBootVirt;
+@@ -99,7 +138,7 @@ class DE5BootChan : public DLogicalChannelBase{
+ 
+ // same ladder and window as e6bfix (the E5 kernel gets the same in-place Image
+ // layout): biggest block first, base in [KLo, KHi], end <= the ram log
+-static const TUint32 KSizes[]={0xa000000u, 0x9000000u, 0x8000000u, 0x7000000u, 0x6000000u, 0x5000000u, 0x4000000u, 0x3000000u, 0x2000000u};
++static const TUint32 KSizes[]={0xa000000u, 0x9000000u, 0x8000000u, 0x7000000u, 0x6000000u, 0x5000000u, 0x4000000u, 0x3000000u, 0x2000000u, 0x1800000u, 0x1000000u}; // last two: E72 (16 mb chunk)
+ static const TUint32 KLo=0x11600000u, KHi=0x1a000000u;
+ static const TInt KNSizes=(TInt)(sizeof(KSizes)/sizeof(KSizes[0]));
+ 
+@@ -206,7 +245,12 @@ TInt DE5BootChan::ReadPhys(TUint32 aPhys, TAny* aDes){
+ // MB), claimed if the mapper refuses it. uncached so nothing is left in the
+ // caches when linux takes over
+ TInt DE5BootChan::SaveIsah(TAny* aDes){
+-	if(Kern::ThreadGetDesMaxLength(&Kern::CurrentThread(), aDes)<44){return KErrArgument;}
++#ifdef RB_E72
++	const TInt KOutWords=14; // + L2 cache id/ctrl/aux
++#else
++	const TInt KOutWords=11;
++#endif
++	if(Kern::ThreadGetDesMaxLength(&Kern::CurrentThread(), aDes)<KOutWords*4){return KErrArgument;}
+ 	if(!iIsahChunk){
+ 		TInt r=DPlatChunkHw::New(iIsahChunk, KIsahPhys, (TInt)KIsahSize, EMapAttrSupRw|EMapAttrFullyBlocking);
+ 		if(r!=KErrNone){
+@@ -228,8 +272,26 @@ TInt DE5BootChan::SaveIsah(TAny* aDes){
+ 	asm volatile("mrc p15,0,%0,c1,c0,0":"=r"(v)); h[7]=v;
+ 	asm volatile("mrc p15,0,%0,c10,c2,0":"=r"(v)); h[8]=v;
+ 	asm volatile("mrc p15,0,%0,c10,c2,1":"=r"(v)); h[9]=v;
+-	TUint32 out[11];
++	TUint32 out[KOutWords];
+ 	out[0]=h[2]; out[1]=h[3]; out[2]=h[4];
++#ifdef RB_E72
++	// L2 outer cache (L210/L220/L310 id at +0, ctrl +0x100, aux +0x104), the
++	// E5/E6 one sits at 0x20500000. only a recognised id arms the L2
++	// invalidate in tramp_scatter
++	{
++		TUint32 id=0xffffffffu, ctrl=0, aux=0;
++		DPlatChunkHw* l2=NULL;
++		if(DPlatChunkHw::New(l2, 0x20500000u, 0x1000, EMapAttrSupRw|EMapAttrFullyBlocking)==KErrNone){
++			volatile TUint32* l2r=(volatile TUint32*)l2->LinearAddress();
++			id=l2r[0]; ctrl=l2r[0x100/4]; aux=l2r[0x104/4];
++			l2->Close(NULL);
++		}
++		TUint32 part=(id>>6)&0xfu;
++		iL2Base=((id>>24)==0x41u && part>=1 && part<=3) ? 0x20500000u : 0;
++		h[10]=id; h[11]=ctrl; h[12]=aux;
++		out[11]=id; out[12]=ctrl; out[13]=aux;
++	}
++#endif
+ 
+ 	// the live kernel L1 (16 kb, ttbr1): map only, never claim symbian's own
+ 	DPlatChunkHw* lc=NULL;
+@@ -260,7 +322,167 @@ TInt DE5BootChan::SaveIsah(TAny* aDes){
+ 	return Kern::ThreadDesWrite(&Kern::CurrentThread(), aDes, p8, 0);
+ }
+ 
++#ifdef RB_E72
++#include "tramp_scatter.hdr" // KTrampScatter[], KTrampScatterLen
++typedef void (*TScatterFn)(TUint32 aList, TUint32 aPages, TUint32 aTarget, TUint32 aDtbOff);
++
++// scatter boot (E72). slot i = 4 kb at KE72Target+i*4k. a slot is backed
++// lazily on first load: a page symbian hands out INSIDE the target becomes the
++// slot it already sits in (no copy needed, "fixed"); a page outside the target
++// backs the slot being loaded and is copied there by tramp_scatter with the
++// mmu off. a target page whose slot is already backed is held until the boot
++// (nothing of symbian's may land there). no contiguous ram needed at all
++TPhysAddr DE5BootChan::GetSlot(TUint32 aSlot){
++	if(aSlot>=iNPages){return 0;}
++	if(iList[aSlot]){return iList[aSlot];}
++	const TUint32 lo=KE72Target, hi=KE72Target+iNPages*0x1000u;
++	for(;;){
++		TPhysAddr p=0;
++		if(Epoc::AllocPhysicalRam(0x1000, p, 0)!=KErrNone){return 0;}
++		if(p>=lo && p<hi){
++			TUint32 s=(p-lo)>>12;
++			if(!iList[s]){
++				iList[s]=p; ++iGot; ++iFixed;
++				if(s==aSlot){return p;}
++				continue;
++			}
++			if(iNHeld<iNPages){iHeld[iNHeld++]=p; continue;}
++			Epoc::FreePhysicalRam(p, 0x1000);
++			return 0;
++		}
++		iList[aSlot]=p; ++iGot;
++		return p;
++	}
++}
++
++// contiguous block outside the target; whatever lands inside is held and
++// given back afterwards (symbian hands out low addresses first = the target)
++TPhysAddr DE5BootChan::AllocOutside(TUint32 aBytes, TInt aAlign){
++	const TUint32 lo=KE72Target, hi=KE72Target+KE72MaxPages*0x1000u;
++	const TInt KMaxHold=512;
++	TPhysAddr* held=(TPhysAddr*)Kern::Alloc(KMaxHold*sizeof(TPhysAddr));
++	if(!held){return 0;}
++	TInt nh=0;
++	TPhysAddr got=0;
++	while(nh<KMaxHold){
++		TPhysAddr p=0;
++		if(Epoc::AllocPhysicalRam((TInt)aBytes, p, aAlign)!=KErrNone){break;}
++		if(p+aBytes<=lo || p>=hi){got=p; break;}
++		held[nh++]=p;
++	}
++	for(TInt i=0; i<nh; ++i){Epoc::FreePhysicalRam(held[i], (TInt)aBytes);}
++	Kern::Free(held);
++	return got;
++}
++
++// AllocBoot: only the list. on failure a2 gets a code: 0xE7100000 = no list
++TInt DE5BootChan::AllocScatter(TUint32 aSize, TAny* a2){
++	ReleaseBoot();
++	TUint32 n=(aSize+0xfffu)>>12;
++	if(n==0 || n>KE72MaxPages){return KErrArgument;}
++	TUint32 out=0xE7100000u;
++	iListPhys=AllocOutside(KE72ListBytes, 12);
++	if(!iListPhys){Kern::ThreadRawWrite(&Kern::CurrentThread(), a2, &out, 4); return KErrNoMemory;}
++	TInt r=DPlatChunkHw::New(iListChunk, iListPhys, (TInt)KE72ListBytes, EMapAttrSupRw|EMapAttrFullyBlocking);
++	if(r!=KErrNone){iListChunk=NULL; ReleaseBoot(); return r;}
++	iList=(volatile TUint32*)iListChunk->LinearAddress();
++	for(TUint32 i=0; i<KE72MaxPages; ++i){iList[i]=0;}
++	iHeld=(TPhysAddr*)Kern::Alloc(n*sizeof(TPhysAddr));
++	if(!iHeld){ReleaseBoot(); return KErrNoMemory;}
++	iNPages=n; iNHeld=0; iGot=0; iFixed=0;
++	iBootPhys=KE72Target;
++	iBootSize=n*0x1000u;
++	out=(TUint32)KE72Target;
++	return Kern::ThreadRawWrite(&Kern::CurrentThread(), a2, &out, 4);
++}
++
++// copies user data into the slots, one short uncached mapping per page.
++// out of ram -> KErrNoMemory-1000-<slots backed so far>/16 so boot.log says how far it got
++TInt DE5BootChan::LoadScatter(TUint32 aOff, const TUint8* aSrc, TUint32 aLen){
++	if(!iList){return KErrNotReady;}
++	if(aOff>iBootSize || aLen>iBootSize-aOff){return KErrArgument;}
++	while(aLen){
++		TUint32 pg=aOff>>12, po=aOff&0xfffu, n=0x1000u-po;
++		if(n>aLen){n=aLen;}
++		TBool fresh=!iList[pg];
++		TPhysAddr p=GetSlot(pg);
++		if(!p){return -1000-(TInt)iGot;}
++		// the page may still have symbian's dirty lines in L1: flush them now,
++		// before our data goes in uncached (see tramp_scatter.S)
++		if(fresh){asm volatile("mcr p15,0,%0,c7,c14,0"::"r"(0)); Dsb();}
++		DPlatChunkHw* c=NULL;
++		TInt r=DPlatChunkHw::New(c, p, 0x1000, EMapAttrSupRw|EMapAttrFullyBlocking);
++		if(r!=KErrNone){return r;}
++		r=Kern::ThreadRawRead(&Kern::CurrentThread(), aSrc, (TUint8*)(c->LinearAddress()+po), (TInt)n);
++		c->Close(NULL);
++		if(r!=KErrNone){return r;}
++		aOff+=n; aSrc+=n; aLen-=n;
++	}
++	return KErrNone;
++}
++
++// tramp_scatter in its own page (outside the target), identity mapped, go
++TInt DE5BootChan::BootScatter(TUint32 aDtbOff){
++	// stage markers in the isah block (word 13..15, read back by e72logs even
++	// without a reset): tells where a silent thread death happens
++	volatile TUint32* st=iIsahChunk ? ((volatile TUint32*)iIsahChunk->LinearAddress())+13 : NULL;
++#define RB_ST(n) do{if(st){st[0]=(n); Dsb();}}while(0)
++	RB_ST(0xb0070001u);
++	if(!iList){return KErrNotReady;}
++	TPhysAddr sp=AllocOutside(0x1000, 0);
++	if(!sp){return -2000;}
++	if(st){st[1]=sp;}
++	RB_ST(0xb0070002u);
++	DPlatChunkHw* sc=NULL;
++	if(DPlatChunkHw::New(sc, sp, 0x1000, EMapAttrSupRw|EMapAttrFullyBlocking)!=KErrNone){
++		Epoc::FreePhysicalRam(sp, 0x1000);
++		return -2001;
++	}
++	volatile TUint8* sb=(volatile TUint8*)sc->LinearAddress();
++	for(TUint i=0; i<KTrampScatterLen; ++i){sb[i]=KTrampScatter[i];}
++	*(volatile TUint32*)(sb+KTrampScatterLen-8)=iL2Base; // l2base word
++	*(volatile TUint32*)(sb+KTrampScatterLen-4)=RB_LOGPHYS+0xff000u; // trace words
++	RB_ST(0xb0070003u);
++	TUint32 idx=0, old=0;
++	DPlatChunkHw* cl=IdMapExec(sp, idx, old);
++	if(!cl){sc->Close(NULL); Epoc::FreePhysicalRam(sp, 0x1000); return -2002;}
++	if(st){st[2]=old;}
++	RB_ST(0xb0070004u);
++	Cache::IMB_Range((TLinAddr)sp, KTrampScatterLen);
++	RB_ST(0xb0070005u);
++	TUint32 first=*(volatile TUint32*)sp; // data read through the identity map
++	if(st){st[2]=first;}
++	RB_ST(0xb0070006u);
++
++	NKern::DisableAllInterrupts(); // no symbian code runs after this
++	RB_ST(0xb0070007u);
++	TScatterFn fn=(TScatterFn)sp;
++	fn((TUint32)iListPhys, iNPages, KE72Target, aDtbOff); // never returns
++	return KErrNone; // unreachable
++}
++#endif
++
+ TInt DE5BootChan::Request(TInt aFunction, TAny* a1, TAny* a2){
++#ifdef RB_E72
++	if(aFunction==RRunBlob::EControlAllocBoot){
++		TUint32 req=0;
++		TInt rr=Kern::ThreadRawRead(&Kern::CurrentThread(), a1, &req, 4);
++		if(rr!=KErrNone){return rr;}
++		return AllocScatter(req, a2);
++	}
++	if(aFunction==RRunBlob::EControlLoadChunk){
++		TLoadChunk c;
++		TInt rr=Kern::ThreadRawRead(&Kern::CurrentThread(), a1, &c, sizeof(c));
++		if(rr!=KErrNone){return rr;}
++		return LoadScatter(c.iOffset, (const TUint8*)c.iSrc, c.iLen);
++	}
++	if(aFunction==RRunBlob::EControlBoot){
++		TBootParams b;
++		TInt rr=Kern::ThreadRawRead(&Kern::CurrentThread(), a1, &b, sizeof(b));
++		if(rr!=KErrNone){return rr;}
++		return BootScatter(b.iDtbOff);
++	}
++#endif
+ 	if(aFunction==RRunBlob::EControlAllocBoot){return AllocBoot(a1, a2);}
+ 
+ 	if(aFunction==RRunBlob::EControlReadPhys){return ReadPhys((TUint32)a1, a2);}
+diff --git a/linux/stage0/symbian-loader/e72dump_app.cpp b/linux/stage0/symbian-loader/e72dump_app.cpp
+new file mode 100644
+index 0000000..47f46ed
+--- /dev/null
++++ b/linux/stage0/symbian-loader/e72dump_app.cpp
+@@ -0,0 +1,62 @@
++// Nokia E72: copies the whole RAM (128 mb from 0x10000000) to E:\e72ram.bin
++// with the ReadPhys control of e5boot_ldd.cpp (plain RAM reads, nothing
++// else), to analyse symbian + the modem software (ISASW, PA_SWD) offline.
++// progress in E:\e72dump.log. a block that cannot be read is written as zeros
++#include <e32std.h>
++#include <f32file.h>
++#include "runblob.h"
++
++_LIT(KLog, "E:\\e72dump.log");
++_LIT(KBin, "E:\\e72ram.bin");
++const TUint32 KPhys=0x10000000u;
++const TUint32 KLen=0x07ff0000u; // not the last 64 kb above the secure message pool (never mapped by symbian)
++const TUint32 KStep=0x8000u;
++
++static void L(RFs& fs, const TDesC8& m){
++	RFile f; TInt r=f.Open(fs, KLog, EFileWrite);
++	if(r==KErrNotFound){r=f.Create(fs, KLog, EFileWrite);}
++	if(r!=KErrNone){return;}
++	TInt p=0; f.Seek(ESeekEnd, p); f.Write(m); f.Flush(); f.Close();
++}
++
++GLDEF_C TInt E32Main(){
++	RFs fs;
++	if(fs.Connect()!=KErrNone){return KErrGeneral;}
++	TBuf8<96> b;
++	b.Copy(_L8("e72dump\n")); L(fs, b);
++	User::FreeLogicalDevice(KRunBlobName);
++	TInt rLoad=User::LoadLogicalDevice(KRunBlobLdd);
++	b.Format(_L8("Load=%d\n"), rLoad); L(fs, b);
++	if(rLoad==KErrNone || rLoad==KErrAlreadyExists){
++		RRunBlob dev;
++		if(dev.Open()==KErrNone){
++			RFile out;
++			TInt ro=out.Replace(fs, KBin, EFileWrite);
++			b.Format(_L8("Replace=%d\n"), ro); L(fs, b);
++			if(ro==KErrNone){
++				TUint8* mem=(TUint8*)User::Alloc(KStep);
++				if(mem){
++					TInt bad=0, werr=0;
++					for(TUint32 off=0; off<KLen; off+=KStep){
++						TPtr8 buf(mem, 0, KStep);
++						TInt r=dev.ReadPhys(KPhys+off, buf);
++						if(r!=KErrNone || buf.Length()!=(TInt)KStep){
++							if(bad<16){b.Format(_L8("ReadPhys@%x=%d\n"), KPhys+off, r); L(fs, b);}
++							bad++;
++							buf.SetLength(KStep); buf.FillZ();
++						}
++						TInt w=out.Write(buf);
++						if(w!=KErrNone){b.Format(_L8("Write@%x=%d\n"), off, w); L(fs, b); werr=w; break;}
++						if((off&0x7fffffu)==0){out.Flush(); b.Format(_L8("at %x bad=%d\n"), KPhys+off, bad); L(fs, b);}
++					}
++					b.Format(_L8("done bad=%d werr=%d\n"), bad, werr); L(fs, b);
++					User::Free(mem);
++				}
++				out.Flush(); out.Close();
++			}
++			dev.Close();
++		}
++	}
++	fs.RSessionBase::Close(); // RFs::Close is not exported by the 9.3 efsrv
++	return KErrNone;
++}

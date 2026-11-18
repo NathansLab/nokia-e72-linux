@@ -1,0 +1,170 @@
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.12.0 (root@fe2322745bec) (arm-linux-gnueabi-gcc (Debian 12.2.0-14) 12.2.0, GNU ld (GNU Binutils for Debian) 2.40) #1 Wed Nov 18 02:09:37 UTC 2026
+[    0.000000] CPU: ARMv6-compatible processor [410fb764] revision 4 (ARMv7), cr=00e5387d
+[    0.000000] CPU: VIPT aliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Nokia E72 RM-530 (RapuYama)
+[    0.000000] earlycon: ramcon0 at MMIO 0x17000000 (options '')
+[    0.000000] printk: legacy bootconsole [ramcon0] enabled
+[    0.000000] printk: debug: skip boot console de-registration.
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writeback
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000011600000-0x0000000016ffffff]
+[    0.000000] On node 0, zone Normal: 512 pages in unavailable ranges
+[    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+[    0.000000] pcpu-alloc: [0] 0 
+[    0.000000] Kernel command line: earlycon=ramcon,0x17000000 keep_bootcon console=ttyNULL loglevel=8 ignore_loglevel panic=10 nohlt clk_ignore_unused pd_ignore_unused cma=0 e6.usbsh e6.nogui e6.swd=0 e6.lowmem=0 g_cdc.host_addr=02:e7:20:00:00:01 g_cdc.dev_addr=02:e7:20:00:00:02
+[    0.000000] Unknown kernel command line parameters "pd_ignore_unused cma=0", will be passed to user space.
+[    0.000000] Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 23040
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rapuyama-intc: probe, parent=00000000
+e6: intc sec bank 0: en=f86f6fe1 raw=ffc0c21e bank_en=00000001
+e6: intc sec bank 1: en=fff97ca7 raw=0017805d bank_en=00000001
+e6: intc sec bank 2: en=fff77fe5 raw=6b088a1e bank_en=00000001
+e6: intc sec bank 3: en=fe7efe1f raw=02807eff bank_en=00000001
+e6: intc sec bank 4: en=feffffff raw=00010020 bank_en=00000001
+[    0.000000] rapuyama-intc: domain=(ptrval) ready, handler installed
+[    0.000000] L2C-220 cache controller enabled, 8 ways, 256 kB
+[    0.000000] L2C-220: CACHE_ID 0x41000486, AUX_CTRL 0x02050249
+[    0.000000] sched_clock: 32 bits at 33kHz, resolution 30517ns, wraps every 65535999984741ns
+[    0.000091] clocksource: rapuyama-e5-fc: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 58327039986419 ns
+[    0.000213] rapuyama-e5-timer: 1 kHz base / 1000 Hz Linux tick (irq 16), counter 32768 Hz
+[    0.000610] Console: colour dummy device 80x30
+[    0.000732] Calibrating delay loop... 
+[    0.001220] rapuyama-intc: first irq hwirq=35
+[    0.018218] 591.87 BogoMIPS (lpj=295936)
+[    0.018280] CPU: Testing write buffer coherency: ok
+[    0.018463] pid_max: default: 32768 minimum: 301
+[    0.018829] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.018920] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.024383] Setting up static identity map for 0x11700000 - 0x11700038
+[    0.025390] dyndbg: Ignore empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build
+[    0.025543] Memory: 77544K/92160K available (7168K kernel code, 583K rwdata, 2028K rodata, 1024K init, 236K bss, 14208K reserved, 0K cma-reserved)
+[    0.026458] devtmpfs: initialized
+[    0.030639] VFP support v0.3: implementor 41 architecture 1 part 20 variant b rev 5
+[    0.031036] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    0.031127] futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+[    0.031463] pinctrl core: initialized pinctrl subsystem
+[    0.034820] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.036590] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.045593] raid6: skipped pq benchmark and selected int32x8
+[    0.045684] raid6: using intx1 recovery algorithm
+[    0.046874] usb_phy_generic usb-phy: dummy supplies not allowed for exclusive requests (id=vbus)
+[    0.047637] pps_core: LinuxPPS API ver. 1 registered
+[    0.047668] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <email removed>
+[    0.047790] PTP clock support registered
+[    0.048126] rapuyama: early soc watchdog feeding stopped, driver took over (stall detector 5 s, ramcon heartbeat 10 s)
+[    0.048583] input: Nokia E5 power key as /devices/platform/soc/20030700.watchdog/input/input0
+[    0.048706] rapuyama-wdt 20030700.watchdog: pmic + soc watchdog, 48 s, power key (taken 0, missed 0)
+[    0.053283] clocksource: Switched to clocksource rapuyama-e5-fc
+[    0.075531] NET: Registered PF_INET protocol family
+[    0.076141] IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.078124] tcp_listen_portaddr_hash hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.078308] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.078430] TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.078521] TCP bind hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.078765] TCP: Hash tables configured (established 1024 bind 1024)
+[    0.079040] UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.079132] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.079528] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.087585] Initialise system trusted keyrings
+[    0.088165] workingset: timestamp_bits=30 max_order=15 bucket_order=0
+[    0.706146] xor: measuring software checksum speed
+[    0.710510]    arm4regs        :   773 MB/sec
+[    0.719299]    8regs           :   377 MB/sec
+[    0.727355]    32regs          :   410 MB/sec
+[    0.727416] xor: using function: arm4regs (773 MB/sec)
+[    0.727478] Key type asymmetric registered
+[    0.727508] Asymmetric key parser 'x509' registered
+[    0.727661] io scheduler mq-deadline registered
+[    0.727722] io scheduler kyber registered
+[    0.727813] io scheduler bfq registered
+[    0.732788] zram: Added device: zram0
+[    0.734191] musb-hdrc musb-hdrc.0.auto: usb block is powered down (no cable at boot?), no usb
+[    0.734313] musb-hdrc musb-hdrc.0.auto: error -ENODEV: musb_init_controller failed
+[    0.734954] UDC core: g_cdc: couldn't find an available UDC
+[    0.735748] i2c_dev: i2c /dev entries driver
+[    0.737335] NET: Registered PF_INET6 protocol family
+[    0.740142] Segment Routing with IPv6
+[    0.740509] In-situ OAM (IOAM) with IPv6
+[    0.740722] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    0.742431] NET: Registered PF_PACKET protocol family
+[    0.742980] rapuyama: isah v2 ttbr0=142ac018 ttbr1=10000018 ttbcr=00000001 dacr=00000001 ctx=00000056 sctlr=30e5387d prrr=000aa8a4 nmrr=a840a840
+[    0.743103] rapuyama: isah cb[0]=00000000 pa=00000000
+[    0.743133] rapuyama: isah cb[1]=00000000 pa=00000000
+[    0.743194] rapuyama: isah cb[2]=00000000 pa=00000000
+[    0.743286] rapuyama: isah cb[3]=00000000 pa=00000000
+[    0.743316] rapuyama: isah cb[4]=00000000 pa=00000000
+[    0.743377] rapuyama: isah cb[5]=00000000 pa=00000000
+[    0.743408] rapuyama: isah obj=00000000 pa=00000000
+[    0.743438] rapuyama: isah obj+00: c6300000 100dd001 c6400000 100dd401 c6500000 100dd801 c6600000 100ddc01
+[    0.743530] rapuyama: isah obj+20: c6800000 100da401 c6900000 100da801 c6a00000 100dac01 c6b00000 100da001
+[    0.743621] rapuyama: isah obj+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.743682] rapuyama: isah obj+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.743743] rapuyama: isah obj+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.743835] rapuyama: isah obj+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.743896] rapuyama: isah obj+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.743988] rapuyama: isah obj+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744049] rapuyama: isah sisa+00: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744110] rapuyama: isah sisa+20: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744201] rapuyama: isah sisa+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744293] rapuyama: isah sisa+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744354] rapuyama: isah sisa+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744445] rapuyama: isah sisa+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744506] rapuyama: isah sisa+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744567] rapuyama: isah sisa+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744659] rapuyama: isah superpage=00000000 machinedata=00000000
+[    0.744689] rapuyama: isah md+00: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744781] rapuyama: isah md+20: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744842] rapuyama: isah md+40: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744903] rapuyama: isah md+60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.744995] rapuyama: isah md+80: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.745056] rapuyama: isah md+a0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.745147] rapuyama: isah md+c0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.745208] rapuyama: isah md+e0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.753936] Loading compiled-in X.509 certificates
+[    0.767944] Btrfs loaded, zoned=no, fsverity=no
+[    0.769714] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    0.776397] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    0.780883] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    0.780975] clk: Not disabling unused clocks
+[    0.781341] platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    0.781433] cfg80211: failed to load regulatory.db
+[    0.781677] Warning: unable to open an initial console.
+[    0.782745] /dev/root: Can't open blockdev
+[    0.782836] VFS: Cannot open root device "" or unknown-block(0,0): error -6
+[    0.782897] Please append a correct "root=" boot option; here are the available partitions:
+[    0.782958] List of all bdev filesystems:
+[    0.783020]  ext3
+[    0.783020]  ext2
+[    0.783050]  ext4
+[    0.783081]  vfat
+[    0.783111]  msdos
+[    0.783111]  btrfs
+[    0.783142] 
+[    0.783203] Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)
+[    0.783264] CPU: 0 UID: 0 PID: 1 Comm: swapper Not tainted 6.12.0 #1
+[    0.783325] Hardware name: Nokia RapuYama
+[    0.783355] Call trace: 
+[    0.783386]  unwind_backtrace from show_stack+0x10/0x14
+[    0.783508]  show_stack from panic+0xe8/0x300
+[    0.783569]  panic from mount_root_generic+0x1d4/0x2a0
+[    0.783660]  mount_root_generic from prepare_namespace+0x1b8/0x240
+[    0.783752]  prepare_namespace from kernel_init+0x1c/0x140
+[    0.783843]  kernel_init from ret_from_fork+0x14/0x28
+[    0.783905] Exception stack(0xce811fb0 to 0xce811ff8)
+[    0.783966] 1fa0:                                     00000000 00000000 00000000 00000000
+[    0.784027] 1fc0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    0.784088] 1fe0: 00000000 00000000 00000000 00000000 00000013 00000000
+[    0.784179] Rebooting in 10 seconds..
+
+
+[ramcon: 12300 bytes logged]

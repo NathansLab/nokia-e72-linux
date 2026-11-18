@@ -1,0 +1,157 @@
+diff --git a/drivers/input/keyboard/rapuyama-e5-keypad.c b/drivers/input/keyboard/rapuyama-e5-keypad.c
+index 1e5d4b8..5ec1b35 100644
+--- a/drivers/input/keyboard/rapuyama-e5-keypad.c
++++ b/drivers/input/keyboard/rapuyama-e5-keypad.c
+@@ -45,6 +45,9 @@
+ /* ekeyb.dll defaults, RAM copies c8009c34 (rows) / c8009c54 (cols) */
+ static const u8 e5kp_row_gpio[E5KP_ROWS] = { 114, 115, 116, 117, 118, 119, 121, 2 };
+ static const u8 e5kp_col_gpio[E5KP_COLS] = { 0, 3, 13, 33, 36, 38, 45, 55 };
++/* other boards (E72: 8 rows, 7 columns on other pins) name theirs in the
++ * device tree: "nokia,row-gpios" / "nokia,col-gpios", u8 arrays */
++#define E5KP_BANKS	4
+ 
+ static bool learn;
+ module_param(learn, bool, 0644);
+@@ -73,11 +76,13 @@ struct e5kp {
+ 	void __iomem *irq;
+ 	struct delayed_work work;
+ 
+-	u32 col_mask[2];		/* column bits in gpio banks 0 and 1 */
++	unsigned int nrows, ncols;
++	u32 col_mask[E5KP_BANKS];	/* column bits per gpio bank */
+ 	u8 col_bank[E5KP_COLS];
+ 	u32 col_bit[E5KP_COLS];
+-	u8 row_bank[E5KP_ROWS];		/* logical irq-block bank: 0 or 3 */
++	u8 row_bank[E5KP_ROWS];		/* logical irq-block bank */
+ 	u32 row_bit[E5KP_ROWS];
++	u8 row_banks;			/* bit k: bank k has a row */
+ 
+ 	u8 state[E5KP_COLS];		/* reported: bit r of state[c] = pressed */
+ 	u8 last[E5KP_COLS];		/* previous raw scan, for debouncing */
+@@ -87,8 +92,9 @@ static void e5kp_cols_dir(struct e5kp *kp, bool out)
+ {
+ 	int k;
+ 
+-	for (k = 0; k < 2; k++)
+-		writel(kp->col_mask[k], kp->gpio +
++	for (k = 0; k < E5KP_BANKS; k++)
++		if (kp->col_mask[k])
++			writel(kp->col_mask[k], kp->gpio +
+ 			       (out ? GPIO_DIR_OUT(k) : GPIO_DIR_IN(k)));
+ }
+ 
+@@ -96,21 +102,24 @@ static void e5kp_cols_level(struct e5kp *kp, bool high)
+ {
+ 	int k;
+ 
+-	for (k = 0; k < 2; k++)
+-		writel(kp->col_mask[k], kp->gpio +
++	for (k = 0; k < E5KP_BANKS; k++)
++		if (kp->col_mask[k])
++			writel(kp->col_mask[k], kp->gpio +
+ 			       (high ? GPIO_OUT_SET(k) : GPIO_OUT_CLR(k)));
+ }
+ 
+ /* bit r set = row r reads 0 (pressed) */
+ static u8 e5kp_rows(struct e5kp *kp)
+ {
+-	u32 raw0 = readl_relaxed(kp->irq + IRQ_RAW(0));
+-	u32 raw3 = readl_relaxed(kp->irq + IRQ_RAW(3));
++	u32 raw[E5KP_BANKS];
+ 	u8 rows = 0;
+-	int r;
++	int r, k;
+ 
+-	for (r = 0; r < E5KP_ROWS; r++)
+-		if (!((kp->row_bank[r] ? raw3 : raw0) & kp->row_bit[r]))
++	for (k = 0; k < E5KP_BANKS; k++)
++		if (kp->row_banks & BIT(k))
++			raw[k] = readl_relaxed(kp->irq + IRQ_RAW(k));
++	for (r = 0; r < kp->nrows; r++)
++		if (!(raw[kp->row_bank[r]] & kp->row_bit[r]))
+ 			rows |= BIT(r);
+ 	return rows;
+ }
+@@ -127,7 +136,7 @@ static void e5kp_scan(struct e5kp *kp, u8 *cols)
+ 	if (hiz) {
+ 		/* columns keep their low output latch, only the direction moves */
+ 		e5kp_cols_dir(kp, false);
+-		for (c = 0; c < E5KP_COLS; c++) {
++		for (c = 0; c < kp->ncols; c++) {
+ 			void __iomem *g = kp->gpio;
+ 
+ 			writel(kp->col_bit[c], g + GPIO_DIR_OUT(kp->col_bank[c]));
+@@ -139,7 +148,7 @@ static void e5kp_scan(struct e5kp *kp, u8 *cols)
+ 		return;
+ 	}
+ 
+-	for (c = 0; c < E5KP_COLS; c++) {
++	for (c = 0; c < kp->ncols; c++) {
+ 		e5kp_cols_level(kp, true);
+ 		writel(kp->col_bit[c], kp->gpio + GPIO_OUT_CLR(kp->col_bank[c]));
+ 		udelay(col_delay_us);
+@@ -198,6 +207,7 @@ static int e5kp_probe(struct platform_device *pdev)
+ 	static const struct matrix_keymap_data no_keymap = { .keymap_size = 0 };
+ 	struct device *dev = &pdev->dev;
+ 	struct resource *res;
++	u8 rowg[E5KP_ROWS], colg[E5KP_COLS];
+ 	struct e5kp *kp;
+ 	int i, ret;
+ 
+@@ -218,22 +228,39 @@ static int e5kp_probe(struct platform_device *pdev)
+ 	if (!kp->gpio || !kp->irq)
+ 		return -ENOMEM;
+ 
+-	for (i = 0; i < E5KP_COLS; i++) {
+-		unsigned int g = e5kp_col_gpio[i];
++	memcpy(rowg, e5kp_row_gpio, sizeof(rowg));
++	memcpy(colg, e5kp_col_gpio, sizeof(colg));
++	kp->nrows = E5KP_ROWS;
++	kp->ncols = E5KP_COLS;
++	ret = device_property_count_u8(dev, "nokia,row-gpios");
++	if (ret > 0 && ret <= E5KP_ROWS) {
++		kp->nrows = ret;
++		device_property_read_u8_array(dev, "nokia,row-gpios", rowg, ret);
++	}
++	ret = device_property_count_u8(dev, "nokia,col-gpios");
++	if (ret > 0 && ret <= E5KP_COLS) {
++		kp->ncols = ret;
++		device_property_read_u8_array(dev, "nokia,col-gpios", colg, ret);
++	}
++	for (i = 0; i < kp->ncols; i++) {
++		unsigned int g = colg[i];
+ 
++		if (g / 32 >= E5KP_BANKS)
++			return dev_err_probe(dev, -EINVAL, "column %d: gpio %u\n", i, g);
+ 		kp->col_bank[i] = g / 32;
+ 		kp->col_bit[i] = BIT(g % 32);
+ 		kp->col_mask[g / 32] |= BIT(g % 32);
+ 	}
+-	for (i = 0; i < E5KP_ROWS; i++) {
+-		unsigned int l = e5kp_row_gpio[i];
++	for (i = 0; i < kp->nrows; i++) {
++		unsigned int l = rowg[i];
+ 
+ 		if (l >= 106)
+ 			l -= 18;
+-		kp->row_bank[i] = l / 32 ? 1 : 0;	/* 0 -> bank 0, 1 -> bank 3 */
+-		kp->row_bit[i] = BIT(l % 32);
+-		if (l / 32 != 0 && l / 32 != 3)
++		if (l / 32 >= E5KP_BANKS)
+ 			return dev_err_probe(dev, -EINVAL, "row %d: bank %u\n", i, l / 32);
++		kp->row_bank[i] = l / 32;
++		kp->row_bit[i] = BIT(l % 32);
++		kp->row_banks |= BIT(l / 32);
+ 	}
+ 
+ 	kp->input = devm_input_allocate_device(dev);
+@@ -262,7 +289,8 @@ static int e5kp_probe(struct platform_device *pdev)
+ 		return ret;
+ 	schedule_delayed_work(&kp->work, 0);
+ 
+-	dev_info(dev, "8x8 matrix, polled %u ms, %s keymap, learn %d\n", poll_ms,
++	dev_info(dev, "%ux%u matrix, polled %u ms, %s keymap, learn %d\n",
++		 kp->nrows, kp->ncols, poll_ms,
+ 		 device_property_present(dev, "linux,keymap") ? "dt" : "no", learn);
+ 	return 0;
+ }

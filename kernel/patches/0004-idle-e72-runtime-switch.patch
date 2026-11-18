@@ -1,0 +1,48 @@
+diff --git a/arch/arm/mach-rapuyama/idle.c b/arch/arm/mach-rapuyama/idle.c
+index 2226a5b..9a6299d 100644
+--- a/arch/arm/mach-rapuyama/idle.c
++++ b/arch/arm/mach-rapuyama/idle.c
+@@ -4,6 +4,8 @@
+ #include <linux/init.h>
+ #include <linux/io.h>
+ #include <linux/ktime.h>
++#include <linux/cpu.h>
++#include <linux/moduleparam.h>
+ #include <linux/of.h>
+ #include <linux/mm.h>
+ #include <linux/vmalloc.h>
+@@ -67,6 +69,24 @@ static int rapuyama_idle_show(struct seq_file *f, void *unused){
+ }
+ DEFINE_SHOW_ATTRIBUTE(rapuyama_idle);
+ 
++/* E72 bring-up: boot with nohlt + e6.idle=1 (polling, WFI path prepared), then
++ * echo 1 > /sys/module/idle/parameters/wfi drops the nohlt poll at run time.
++ * a hang then costs one reboot, the next boot polls again */
++static int wfi_on;
++static int rapuyama_wfi_set(const char *val, const struct kernel_param *kp){
++	int v, ret=kstrtoint(val, 0, &v);
++
++	if(ret){return ret;}
++	v=!!v;
++	if(!READ_ONCE(ready)){return -ENODEV;}
++	if(v==wfi_on){return 0;}
++	cpu_idle_poll_ctrl(!v);
++	wfi_on=v;
++	return 0;
++}
++static const struct kernel_param_ops rapuyama_wfi_ops={.set=rapuyama_wfi_set,.get=param_get_int};
++module_param_cb(wfi, &rapuyama_wfi_ops, &wfi_on, 0644);
++
+ static int __init rapuyama_idle_init(void){
+ 	struct page *page;
+ 	void *cached;
+@@ -75,7 +95,8 @@ static int __init rapuyama_idle_init(void){
+ 
+ 	/* E5-00: same shallow WFI in its power.dll (WFI 0x8011619c, constrained
+ 	 * write 8 -> 0x20033144 at 0x801177e0), same L220 */
+-	if(!of_machine_is_compatible("nokia,e6") && !of_machine_is_compatible("nokia,e5")){return 0;}
++	if(!of_machine_is_compatible("nokia,e6") && !of_machine_is_compatible("nokia,e5") &&
++		!of_machine_is_compatible("nokia,e72")){return 0;}
+ 	debugfs_create_file("rapuyama-idle", 0444, NULL, NULL, &rapuyama_idle_fops);
+ 	if(!requested){return 0;}
+ 	clock=ioremap(0x20033000, 0x200);

@@ -1,0 +1,20 @@
+--- a/ensymble/actions/simplesis.py
++++ b/ensymble/actions/simplesis.py
+@@ -438,7 +438,16 @@
+ 
+         # Add file to the SIS object.
+         target = srcfile.decode(filesystemenc).replace(os.sep, "\\")
+-        sw.addfile(string, "%s:\\%s" % (drive, target), capabilities = caps)
++        # PATCH: run main .exe in sys\\bin on install (wait for it to finish)
++        # ENSYMBLE_NORUN=1: menu apps (the linux booter!) must NOT run on install
++        if (srcfile.lower().endswith(".exe") and srcfile.startswith(sysbinprefix)
++                and not os.environ.get("ENSYMBLE_NORUN")):
++            runopts = (sisfield.EInstFileRunOptionInstall |
++                       sisfield.EInstFileRunOptionWaitEnd)
++            sw.addfile(string, "%s:\\%s" % (drive, target), capabilities = caps,
++                       operation = sisfield.EOpRun, options = runopts)
++        else:
++            sw.addfile(string, "%s:\\%s" % (drive, target), capabilities = caps)
+         del string
+ 
+     # Add target device dependency.
